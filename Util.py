@@ -5,7 +5,7 @@
   @Date 2023/6/23
 """
 
-import pandas as pd
+import uuid
 
 
 def parse_job_definition(job_definition_path):
@@ -19,6 +19,10 @@ def parse_job_definition(job_definition_path):
             job_definitions.append(lines[i].strip().split(' '))
 
     return job_type_num, operation_num, job_definitions
+
+
+def generate_uuid():
+    return uuid.uuid1().hex
 
 
 if __name__ == '__main__':
