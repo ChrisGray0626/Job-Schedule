@@ -6,7 +6,17 @@
 """
 from queue import LifoQueue
 from queue import PriorityQueue
-from queue import Queue
+
+
+def get_instance(strategy):
+    if strategy == 'FIFO':
+        return FIFO()
+    elif strategy == 'FILO':
+        return FILO()
+    elif strategy == 'SPT':
+        return SPT()
+    else:
+        raise Exception("Unknown Strategy")
 
 
 class TaskScheduler:
@@ -35,9 +45,10 @@ class FIFO(TaskScheduler):
 
     def add(self, item):
         # Create Time
-        priority = item['create_time']
-        item = item['task_id']
-        super().add((int(priority), item))
+        priority = item[4]
+        # Task ID
+        task_id = item[0]
+        super().add((priority, task_id))
 
     def peek(self):
         return super().peek()[1]
