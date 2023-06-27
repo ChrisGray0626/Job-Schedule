@@ -216,6 +216,7 @@ class WorkShop:
 
 if __name__ == '__main__':
     # TODO 优化存储结构 DataFrame
+    # TODO ID 生成
     work_shop = WorkShop()
     work_shop.init_random_job(100)
     work_shop.schedule()
