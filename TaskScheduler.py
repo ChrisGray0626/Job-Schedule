@@ -15,6 +15,8 @@ def get_instance(strategy):
         return FILO()
     elif strategy == 'SPT':
         return SPT()
+    elif strategy == 'LPT':
+        return LPT()
     else:
         raise Exception("Unknown Strategy")
 
@@ -37,11 +39,23 @@ class TaskScheduler:
         return self.queue.empty()
 
 
-class FIFO(TaskScheduler):
+class PriorityTaskScheduler(TaskScheduler):
 
     def __init__(self):
         super().__init__()
         self.queue = PriorityQueue()
+
+    def peek(self):
+        return super().peek()[1]
+
+    def pop(self):
+        return super().pop()[1]
+
+
+class FIFO(PriorityTaskScheduler):
+
+    def __init__(self):
+        super().__init__()
 
     def add(self, item):
         # Create Time
@@ -50,36 +64,58 @@ class FIFO(TaskScheduler):
         task_id = item[0]
         super().add((priority, task_id))
 
-    def peek(self):
-        return super().peek()[1]
-
-    def pop(self):
-        return super().pop()[1]
 
 
-class FILO(TaskScheduler):
+class FILO(PriorityTaskScheduler):
 
     def __init__(self):
         super().__init__()
-        self.queue = LifoQueue()
+
+    def add(self, item):
+        # Create Time
+        priority = -item[4]
+        # Task ID
+        task_id = item[0]
+        super().add((priority, task_id))
 
 
-class SPT(TaskScheduler):
+class SPT(PriorityTaskScheduler):
 
     def __init__(self):
         super().__init__()
-        self.queue = PriorityQueue()
 
     def add(self, item):
         # Processing Time
         priority = item[2]
-        super().add((priority, item))
+        # Task ID
+        task_id = item[0]
+        super().add((priority, task_id))
 
-    def peek(self):
-        return super().peek()[1]
 
-    def pop(self):
-        return super().pop()[1]
+class LPT(PriorityTaskScheduler):
+
+    def __init__(self):
+        super().__init__()
+
+    def add(self, item):
+        # Processing Time
+        priority = -item[2]
+        # Task ID
+        task_id = item[0]
+        super().add((priority, task_id))
+
+
+class SRTPT(PriorityTaskScheduler):
+
+    def __init__(self):
+        super().__init__()
+
+    def add(self, item):
+        # Remaining Processing Time
+        priority = -item[2]
+        # Task ID
+        task_id = item[0]
+        super().add((priority, task_id))
 
 
 if __name__ == '__main__':

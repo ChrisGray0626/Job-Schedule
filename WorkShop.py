@@ -22,6 +22,7 @@ class WorkShop:
         self.job_task_num = None
         self.job_tasks = None
         self.next_task_mat = None
+        self.job_processing_times = None
         self.task_processing_times = None
         self.work_centre_num = None
         self.parallel_machine_num = parallel_machine_num
@@ -31,22 +32,6 @@ class WorkShop:
         self.task_scheduler = TaskScheduler.get_instance(task_schedule_strategy)
         self.operations = None
         self.init()
-
-    # def __init__(self):
-    #     self.instance_specification = "Taillard"
-    #     self.instance_path = "Data/Sample-Taillard.txt"
-    #     self.job_type_num = None
-    #     self.job_task_num = None
-    #     self.job_tasks = None
-    #     self.next_task_mat = None
-    #     self.task_processing_times = None
-    #     self.work_centre_num = None
-    #     self.parallel_machine_num = 3
-    #     self.machines = None
-    #     self.jobs = None
-    #     self.tasks = None
-    #     self.task_scheduler = TaskScheduler.FIFO()
-    #     self.init()
 
     def init(self):
         self.init_definition()
@@ -58,6 +43,8 @@ class WorkShop:
     def init_definition(self):
         self.job_type_num, self.job_task_num, self.job_tasks, self.next_task_mat, self.task_processing_times = Util.parse_definition(
             self.instance_specification, self.instance_path)
+
+        self.job_processing_times = np.sum(self.task_processing_times, axis=1)
 
     def init_machine(self):
         self.machines = pd.DataFrame(columns=['machine_id', 'work_centre_id', 'next_idle_time']).astype(int)
@@ -182,21 +169,15 @@ class WorkShop:
         num = len(machines_ids)
         if num < 1:
             return None
+
         machine_id = machines_ids.index[np.random.randint(0, len(machines_ids))]
 
         return machine_id
 
     def print(self):
+        print(self.operations)
+
         job_completed_time = self.jobs['completed_time'].max()
         task_completed_time = self.tasks['completed_time'].max()
         print('Job completed time: ' + str(job_completed_time))
         print('Task completed time: ' + str(task_completed_time))
-        print(self.operations)
-
-
-if __name__ == '__main__':
-    work_shop = WorkShop("Taillard", "Data/Sample-Taillard.txt", 3, "FIFO")
-    work_shop.init_random_job(50)
-    work_shop.schedule()
-    work_shop.print()
-    pass
