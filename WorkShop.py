@@ -7,7 +7,7 @@
 import numpy as np
 import pandas as pd
 
-import TaskScheduer
+import TaskScheduler
 import Util
 
 pd.options.mode.chained_assignment = None
@@ -28,7 +28,8 @@ class WorkShop:
         self.machines = None
         self.jobs = None
         self.tasks = None
-        self.task_scheduler = TaskScheduer.get_instance(task_schedule_strategy)
+        self.task_scheduler = TaskScheduler.get_instance(task_schedule_strategy)
+        self.operations = None
         self.init()
 
     # def __init__(self):
@@ -44,7 +45,7 @@ class WorkShop:
     #     self.machines = None
     #     self.jobs = None
     #     self.tasks = None
-    #     self.task_scheduler = TaskScheduer.FIFO()
+    #     self.task_scheduler = TaskScheduler.FIFO()
     #     self.init()
 
     def init(self):
@@ -52,6 +53,7 @@ class WorkShop:
         self.init_machine()
         self.init_job()
         self.init_task()
+        self.init_operation()
 
     def init_definition(self):
         self.job_type_num, self.job_task_num, self.job_tasks, self.next_task_mat, self.task_processing_times = Util.parse_definition(
@@ -74,6 +76,10 @@ class WorkShop:
         self.tasks = pd.DataFrame(
             columns=['task_id', 'job_id', 'task_type', 'processing_time', 'create_time', 'start_time', 'completed_time',
                      'status']).astype(int)
+
+    def init_operation(self):
+        self.operations = pd.DataFrame(
+            columns=['operation_id', 'job_type', 'task_type', 'machine_id', 'start_time', 'completed_time']).astype(int)
 
     def add_job(self, job_type, current_time):
         job_id = len(self.jobs)
@@ -102,7 +108,7 @@ class WorkShop:
         for i in range(0, job_num):
             for j in range(0, self.job_type_num):
                 self.add_job(j, current_times[j])
-                current_times[j] += np.random.randint(1, 2)
+                current_times[j] += np.random.randint(0, 1)
 
     def schedule(self):
         initial_time = 0
@@ -113,24 +119,24 @@ class WorkShop:
             task_type = task['task_type']
             create_time = task['create_time']
             current_time = max(current_times[task_type], create_time)
-            # Check if there is idle machine
-            idle_machines = self.find_idle_machine(task_type, current_time)
-            if len(idle_machines) < 1:
+            # Choose a idle machine
+            machine_id = self.choose_machine(task_type, current_time)
+            if machine_id is None:
                 # There is no idle machine
                 continue
-            self.task_scheduler.pop()
-            # Processing Time
+            # Calculate the completed time
             processing_time = task['processing_time']
             completed_time = current_time + processing_time
-            # Choose a machine
-            machine = self.choose_machine(idle_machines)
-            machine_id = machine['machine_id']
+            machine = self.machines.loc[machine_id]
             # Update the next idle time of the machine
             machine['next_idle_time'] = completed_time
-            self.machines.loc[machine_id] = machine
+            # Pop the task
+            self.task_scheduler.pop()
+            # Update the task
             task['start_time'] = current_time
             task['completed_time'] = completed_time
             task['status'] = 1
+
             job_id = task['job_id']
             job = self.jobs.loc[job_id]
             status = job.loc['status']
@@ -140,6 +146,7 @@ class WorkShop:
                 # Start the job
                 job['start_time'] = current_time
                 job['status'] = 2
+
             next_task_type = self.next_task_mat[job_type][task_type]
             # Update the current task of the job
             job['current_task_type'] = next_task_type
@@ -154,6 +161,10 @@ class WorkShop:
             current_time = self.find_work_centre_machine(task_type)['next_idle_time'].min()
             current_times[task_type] = current_time
 
+            operator_id = len(self.operations)
+            # Update the operation
+            self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time, completed_time]
+
     def find_idle_machine(self, work_centre_id, current_time):
         machines = self.machines[
             (self.machines['work_centre_id'] == work_centre_id) & (self.machines['next_idle_time'] <= current_time)]
@@ -165,19 +176,22 @@ class WorkShop:
 
         return machines
 
-    # TODO Choose Machine
-    def choose_machine(self, machines):
-        machine_id = machines.index[np.random.randint(0, len(machines))]
+    def choose_machine(self, work_centre_id, current_time):
+        machines_ids = self.machines[
+            (self.machines['work_centre_id'] == work_centre_id) & (self.machines['next_idle_time'] <= current_time)]['machine_id']
+        num = len(machines_ids)
+        if num < 1:
+            return None
+        machine_id = machines_ids.index[np.random.randint(0, len(machines_ids))]
 
-        return machines.loc[machine_id].copy()
+        return machine_id
 
     def print(self):
         job_completed_time = self.jobs['completed_time'].max()
         task_completed_time = self.tasks['completed_time'].max()
         print('Job completed time: ' + str(job_completed_time))
         print('Task completed time: ' + str(task_completed_time))
-        print(self.jobs['completed_time'])
-        print(self.tasks['completed_time'])
+        print(self.operations)
 
 
 if __name__ == '__main__':
