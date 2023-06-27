@@ -21,8 +21,9 @@ class WorkShop:
         self.job_type_num = None
         self.job_task_num = None
         self.job_tasks = None
+        self.job_first_task = None
         self.next_task_mat = None
-        self.job_processing_times = None
+        self.remaining_processing_time_mat = None
         self.task_processing_times = None
         self.work_centre_num = None
         self.parallel_machine_num = parallel_machine_num
@@ -41,10 +42,16 @@ class WorkShop:
         self.init_operation()
 
     def init_definition(self):
-        self.job_type_num, self.job_task_num, self.job_tasks, self.next_task_mat, self.task_processing_times = Util.parse_definition(
+        self.job_type_num, self.job_task_num, self.job_tasks, self.task_processing_times = Util.parse_definition(
             self.instance_specification, self.instance_path)
+        self.job_first_task = self.job_tasks[:, 0]
+        self.next_task_mat = Util.generate_next_task_mat(self.job_type_num, self.job_task_num, self.job_tasks)
 
-        self.job_processing_times = np.sum(self.task_processing_times, axis=1)
+        self.remaining_processing_time_mat = Util.generate_remaining_processing_time_mat(self.job_type_num,
+                                                                                         self.job_task_num,
+                                                                                         self.job_first_task,
+                                                                                         self.next_task_mat,
+                                                                                         self.task_processing_times)
 
     def init_machine(self):
         self.machines = pd.DataFrame(columns=['machine_id', 'work_centre_id', 'next_idle_time']).astype(int)
@@ -62,7 +69,7 @@ class WorkShop:
     def init_task(self):
         self.tasks = pd.DataFrame(
             columns=['task_id', 'job_id', 'task_type', 'processing_time', 'create_time', 'start_time', 'completed_time',
-                     'status']).astype(int)
+                     'status', 'remaining_process_time']).astype(int)
 
     def init_operation(self):
         self.operations = pd.DataFrame(
@@ -73,7 +80,7 @@ class WorkShop:
         create_time = current_time
         start_time = -1
         completed_time = -1
-        current_task_type = self.job_tasks[job_type][0]
+        current_task_type = self.job_first_task[job_type]
         status = 0
         job = [job_id, job_type, create_time, start_time, completed_time, current_task_type, status]
         self.jobs.loc[job_id] = job
@@ -86,7 +93,9 @@ class WorkShop:
         start_time = -1
         completed_time = -1
         status = 0
-        task = [task_id, job_id, task_type, processing_time, create_time, start_time, completed_time, status]
+        remaining_process_time = self.remaining_processing_time_mat[job_type][task_type]
+        task = [task_id, job_id, task_type, processing_time, create_time, start_time, completed_time, status,
+                remaining_process_time]
         self.tasks.loc[task_id] = task
         self.task_scheduler.add(task)
 
@@ -150,7 +159,8 @@ class WorkShop:
 
             operator_id = len(self.operations)
             # Update the operation
-            self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time, completed_time]
+            self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
+                                                completed_time]
 
     def find_idle_machine(self, work_centre_id, current_time):
         machines = self.machines[
@@ -165,7 +175,8 @@ class WorkShop:
 
     def choose_machine(self, work_centre_id, current_time):
         machines_ids = self.machines[
-            (self.machines['work_centre_id'] == work_centre_id) & (self.machines['next_idle_time'] <= current_time)]['machine_id']
+            (self.machines['work_centre_id'] == work_centre_id) & (self.machines['next_idle_time'] <= current_time)][
+            'machine_id']
         num = len(machines_ids)
         if num < 1:
             return None

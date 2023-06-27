@@ -43,9 +43,7 @@ def parse_standard(file_path):
             for j in range(0, job_task_num):
                 job_tasks[i - 1][j] = int(nums[j * 2])
                 task_processing_times[i - 1][job_tasks[i - 1][j]] = int(nums[j * 2 + 1])
-        next_task_mat = parse_next_task_mat(job_type_num, job_task_num, job_tasks)
-
-    return job_type_num, job_task_num, job_tasks, next_task_mat, task_processing_times
+    return job_type_num, job_task_num, job_tasks, task_processing_times
 
 
 def parse_taillard(file_path):
@@ -68,18 +66,30 @@ def parse_taillard(file_path):
                 job_type = i - 1
                 task_type = job_tasks[job_type][j]
                 task_processing_times[job_type][task_type] = int(nums[j])
-        next_task_mat = parse_next_task_mat(job_type_num, job_task_num, job_tasks)
-
-    return job_type_num, job_task_num, job_tasks, next_task_mat, task_processing_times
+    return job_type_num, job_task_num, job_tasks, task_processing_times
 
 
-def parse_next_task_mat(job_type_num, job_task_num, job_tasks):
+def generate_next_task_mat(job_type_num, job_task_num, job_tasks):
     next_task_mat = np.zeros((job_type_num, job_task_num), dtype=int)
     for i in range(0, job_type_num):
         for j in range(0, job_task_num - 1):
             next_task_mat[i][job_tasks[i][j]] = job_tasks[i][j + 1]
         next_task_mat[i][job_tasks[i][job_task_num - 1]] = -1
     return next_task_mat
+
+
+def generate_remaining_processing_time_mat(job_type_num, job_task_num, job_first_task, next_task_mat,
+                                           task_processing_times):
+    remaining_processing_times = np.sum(task_processing_times, axis=1)
+    remaining_time_mat = np.zeros((job_type_num, job_task_num), dtype=int)
+    for i in range(0, job_type_num):
+        remaining_processing_time = remaining_processing_times[i]
+        current_task_type = job_first_task[i]
+        while current_task_type != -1:
+            remaining_processing_time -= task_processing_times[i][current_task_type]
+            remaining_time_mat[i][current_task_type] = remaining_processing_time
+            current_task_type = next_task_mat[i][current_task_type]
+    return remaining_time_mat
 
 
 def generate_uuid():

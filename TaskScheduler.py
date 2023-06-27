@@ -4,7 +4,6 @@
   @Author Chris
   @Date 2023/6/24
 """
-from queue import LifoQueue
 from queue import PriorityQueue
 
 
@@ -17,10 +16,15 @@ def get_instance(strategy):
         return SPT()
     elif strategy == 'LPT':
         return LPT()
+    elif strategy == 'SRTPT':
+        return SRTPT()
+    elif strategy == 'LRTPT':
+        return LRTPT()
     else:
         raise Exception("Unknown Strategy")
 
 
+# TODO LOR, MOR, EDD, ERD, SS, CR
 class TaskScheduler:
 
     def __init__(self):
@@ -58,12 +62,12 @@ class FIFO(PriorityTaskScheduler):
         super().__init__()
 
     def add(self, item):
+        # TODO Repeat operation
         # Create Time
         priority = item[4]
         # Task ID
         task_id = item[0]
         super().add((priority, task_id))
-
 
 
 class FILO(PriorityTaskScheduler):
@@ -112,7 +116,20 @@ class SRTPT(PriorityTaskScheduler):
 
     def add(self, item):
         # Remaining Processing Time
-        priority = -item[2]
+        priority = item[8]
+        # Task ID
+        task_id = item[0]
+        super().add((priority, task_id))
+
+
+class LRTPT(PriorityTaskScheduler):
+
+    def __init__(self):
+        super().__init__()
+
+    def add(self, item):
+        # Remaining Processing Time
+        priority = -item[8]
         # Task ID
         task_id = item[0]
         super().add((priority, task_id))
