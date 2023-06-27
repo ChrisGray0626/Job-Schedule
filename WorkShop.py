@@ -58,29 +58,29 @@ class WorkShop:
         self.work_centre_num = self.task_type_num
         for i in range(0, self.work_centre_num):
             for j in range(0, self.parallel_machine_num):
-                machine_id = Util.generate_uuid()
+                machine_id = len(self.machines)
                 self.machines.loc[machine_id] = [machine_id, int(i), 0]
 
     def init_job(self):
         self.jobs = pd.DataFrame(
-            columns=['job_id', 'job_type', 'create_time', 'start_time', 'completed_time', 'current_task', 'status'])
+            columns=['job_id', 'job_type', 'create_time', 'start_time', 'completed_time', 'current_task', 'status']).astype(int)
 
     def init_task(self):
         self.tasks = pd.DataFrame(
             columns=['task_id', 'job_id', 'task_type', 'processing_time', 'create_time', 'start_time', 'completed_time',
-                     'status'])
+                     'status']).astype(int)
 
     def add_job(self, job_type, current_time):
-        job_id = Util.generate_uuid()
+        job_id = len(self.jobs)
         job_definition = self.job_definitions.loc[job_type]
         create_time = current_time
-        start_time = None
-        completed_time = None
+        start_time = -1
+        completed_time = -1
         current_task = job_definition.loc['task_type'][0]
         status = 0
-        self.jobs.loc[job_id] = [job_id, int(job_type), create_time, start_time, completed_time, int(current_task),
-                                 int(status)]
-        self.add_historical_task(job_id, current_time)
+        self.jobs.loc[job_id] = [job_id, job_type, create_time, start_time, completed_time, current_task,
+                                 status]
+        # self.add_historical_task(job_id, current_time)
         self.add_current_task(job_id, current_time)
 
     def add_current_task(self, job_id, current_time):
@@ -101,16 +101,16 @@ class WorkShop:
         task_types = job_definition.loc['task_type']
         processing_times = job_definition.loc['processing_time']
         create_time = current_time
-        start_time = None
-        completed_time = None
+        start_time = -1
+        completed_time = -1
         status = 0
         for i in range(0, self.task_type_num):
-            task_id = Util.generate_uuid()
+            task_id = len(self.tasks)
             task_type = task_types[i]
             processing_time = processing_times[i]
-            self.tasks.loc[task_id] = [task_id, job_id, task_type, processing_time, create_time, start_time,
-                                       completed_time,
-                                       status]
+            self.tasks.loc[task_id] = \
+                [task_id, job_id, task_type, processing_time, create_time, start_time, completed_time, status]
+            self.tasks.loc[task_id] = self.tasks.loc[task_id].astype(int)
 
     def find_task(self, task_id):
         return self.tasks.loc[task_id].copy()
@@ -169,6 +169,7 @@ class WorkShop:
             job_type = job.loc['job_type']
             # Update the start time of the job
             if status == 0:
+                # Start the job
                 # Start the job
                 job['start_time'] = current_time
                 job['status'] = 2
