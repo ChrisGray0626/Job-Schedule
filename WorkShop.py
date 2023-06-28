@@ -170,7 +170,7 @@ class WorkShop:
                 # Check if there is the task in the queue
                 if self.task_scheduler.is_empty(work_centre_id):
                     continue
-                task_id = self.task_scheduler.pop(work_centre_id)
+                task_id = self.task_scheduler.poll(work_centre_id)
                 self.process(current_time, work_centre_id, machine_id, task_id)
             # Task event
             elif event_type == 1:
@@ -184,9 +184,8 @@ class WorkShop:
                     if machine_id == -1:
                         # There is no idle machine
                         continue
-                    task_id = self.task_scheduler.pop(work_centre_id)
+                    task_id = self.task_scheduler.poll(work_centre_id)
                     self.process(current_time, work_centre_id, machine_id, task_id)
-
 
     def find_idle_machine(self, work_centre_id, current_time):
         machines = self.machines[

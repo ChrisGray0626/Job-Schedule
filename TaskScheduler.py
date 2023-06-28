@@ -6,6 +6,8 @@
 """
 from queue import PriorityQueue
 
+import Constant
+
 
 # TODO LOR, MOR, EDD, ERD, SS, CR
 class TaskScheduler:
@@ -18,14 +20,14 @@ class TaskScheduler:
         for i in range(work_centre_num):
             self.task_queues.append(TaskQueue.get_instance(strategy))
 
-    def add(self, task_type, task):
-        self.task_queues[task_type].add(task)
+    def add(self, task_type, item):
+        self.task_queues[task_type].add(item)
 
     def peek(self, task_type):
         return self.task_queues[task_type].peek()
 
-    def pop(self, task_type):
-        return self.task_queues[task_type].pop()
+    def poll(self, task_type):
+        return self.task_queues[task_type].poll()
 
     def is_empty(self, task_type):
         return self.task_queues[task_type].is_empty()
@@ -47,18 +49,8 @@ class TaskQueue:
 
     @staticmethod
     def get_instance(strategy):
-        if strategy == 'FIFO':
-            return FIFO()
-        elif strategy == 'FILO':
-            return FILO()
-        elif strategy == 'SPT':
-            return SPT()
-        elif strategy == 'LPT':
-            return LPT()
-        elif strategy == 'SRTPT':
-            return SRTPT()
-        elif strategy == 'LRTPT':
-            return LRTPT()
+        if strategy in Constant.classical_scheduling_strategies:
+            return SimpleTaskQueue(strategy)
         else:
             raise Exception("Unknown Strategy")
 
@@ -68,7 +60,7 @@ class TaskQueue:
     def peek(self):
         return self.queue.queue[0]
 
-    def pop(self):
+    def poll(self):
         return self.queue.get()
 
     def is_empty(self):
@@ -78,97 +70,45 @@ class TaskQueue:
         return self.queue.qsize()
 
 
+# Implementation of classic scheduling algorithm
 class SimpleTaskQueue(TaskQueue):
 
-    def __init__(self):
+    def __init__(self, strategy):
         super().__init__()
         self.queue = PriorityQueue()
+        self.strategy = strategy
+
+    def add(self, item):
+        priority = self.calc_priority(self.strategy, item)
+        # Task ID
+        task_id = item[0]
+        super().add((priority, task_id))
 
     def peek(self):
         return super().peek()[1]
 
-    def pop(self):
-        return super().pop()[1]
+    def poll(self):
+        return super().poll()[1]
 
-
-class FIFO(SimpleTaskQueue):
-
-    def __init__(self):
-        super().__init__()
-
-    def add(self, item):
-        # TODO Repeat operation
-        # Create Time
-        priority = item[4]
-        # Task ID
-        task_id = item[0]
-        super().add((priority, task_id))
-
-
-class FILO(SimpleTaskQueue):
-
-    def __init__(self):
-        super().__init__()
-
-    def add(self, item):
-        # Create Time
-        priority = -item[4]
-        # Task ID
-        task_id = item[0]
-        super().add((priority, task_id))
-
-
-class SPT(SimpleTaskQueue):
-
-    def __init__(self):
-        super().__init__()
-
-    def add(self, item):
-        # Processing Time
-        priority = item[2]
-        # Task ID
-        task_id = item[0]
-        super().add((priority, task_id))
-
-
-class LPT(SimpleTaskQueue):
-
-    def __init__(self):
-        super().__init__()
-
-    def add(self, item):
-        # Processing Time
-        priority = -item[2]
-        # Task ID
-        task_id = item[0]
-        super().add((priority, task_id))
-
-
-class SRTPT(SimpleTaskQueue):
-
-    def __init__(self):
-        super().__init__()
-
-    def add(self, item):
-        # Remaining Processing Time
-        priority = item[8]
-        # Task ID
-        task_id = item[0]
-        super().add((priority, task_id))
-
-
-class LRTPT(SimpleTaskQueue):
-
-    def __init__(self):
-        super().__init__()
-
-    def add(self, item):
-        # Remaining Processing Time
-        priority = -item[8]
-        # Task ID
-        task_id = item[0]
-        super().add((priority, task_id))
-
-
-if __name__ == '__main__':
-    pass
+    @staticmethod
+    def calc_priority(strategy, task):
+        if strategy == 'FIFO':
+            # Create Time
+            return task[4]
+        elif strategy == 'FILO':
+            # Create Time
+            return -task[4]
+        elif strategy == 'SPT':
+            # Processing Time
+            return task[2]
+        elif strategy == 'LPT':
+            # Processing Time
+            return -task[2]
+        elif strategy == 'SRTPT':
+            # Remaining Processing Time
+            return task[8]
+        elif strategy == 'LRTPT':
+            # Remaining Processing Time
+            return -task[8]
+        else:
+            raise Exception("Unknown Strategy")
