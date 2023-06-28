@@ -5,6 +5,8 @@
   @Date 2023/6/24
 """
 
+from queue import PriorityQueue
+
 import pandas as pd
 
 import Util
@@ -20,7 +22,7 @@ def dataframe():
 
 def parse():
     instance_specification = "Standard"
-    file_path = "Data/la01-Standard.txt"
+    file_path = "../Data/la01-Standard.txt"
     # file_path = "Data/la01-Taillard.txt"
     job_type_num, job_task_num, job_tasks, next_task_mat, task_processing_times = Util.parse_definition(
         instance_specification, file_path)
@@ -28,6 +30,17 @@ def parse():
     print(task_processing_times)
 
 
+def priority_queue_test():
+    items = [(2, 'item2'), (1, 'item1'), (3, 'item3')]
+    pq = PriorityQueue()
+
+    pq.put(items)
+
+    while not pq.empty():
+        item = pq.get()
+        print(item)
+
+
 if __name__ == '__main__':
-    parse()
+    priority_queue_test()
     pass
