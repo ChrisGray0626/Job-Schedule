@@ -95,7 +95,7 @@ class WorkShop:
         self.jobs.loc[job_id] = job
         # Add the first task
         first_task_id = self.add_task(job_id, job_type, first_task_type, current_time)
-        # Task event
+        # Add the task event
         self.events.put([current_time, 1, first_task_type, first_task_id])
 
     def add_task(self, job_id, job_type, task_type, current_time):
@@ -167,10 +167,11 @@ class WorkShop:
             # Machine event
             if event_type == 0:
                 machine_id = param
-                # Check if there is the task in the queue
-                if self.task_scheduler.is_empty(work_centre_id):
-                    continue
+                # if self.task_scheduler.is_empty(work_centre_id):
+                #     continue
                 task_id = self.task_scheduler.poll(work_centre_id)
+                if task_id == -1:
+                    continue
                 self.process(current_time, work_centre_id, machine_id, task_id)
             # Task event
             elif event_type == 1:

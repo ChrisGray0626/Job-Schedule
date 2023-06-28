@@ -20,7 +20,7 @@ def dataframe():
 
 def parse():
     instance_specification = "Standard"
-    file_path = "Data/la01-Standard.txt"
+    file_path = "../Data/la01-Standard.txt"
     # file_path = "Data/la01-Taillard.txt"
     job_type_num, job_task_num, job_tasks, next_task_mat, task_processing_times = Util.parse_definition(
         instance_specification, file_path)

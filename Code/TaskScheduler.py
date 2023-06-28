@@ -61,6 +61,8 @@ class TaskQueue:
         return self.queue.queue[0]
 
     def poll(self):
+        if self.queue.empty():
+            return -1
         return self.queue.get()
 
     def is_empty(self):
@@ -88,6 +90,8 @@ class SimpleTaskQueue(TaskQueue):
         return super().peek()[1]
 
     def poll(self):
+        if super().is_empty():
+            return -1
         return super().poll()[1]
 
     @staticmethod
