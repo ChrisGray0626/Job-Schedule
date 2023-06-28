@@ -83,7 +83,7 @@ class SimpleTaskQueue(TaskQueue):
     def add(self, item):
         priority = self.calc_priority(self.strategy, item)
         # Task ID
-        task_id = item[0]
+        task_id = item[1][0]
         super().add((priority, task_id))
 
     def peek(self):
@@ -95,24 +95,33 @@ class SimpleTaskQueue(TaskQueue):
         return super().poll()[1]
 
     @staticmethod
-    def calc_priority(strategy, task):
+    def calc_priority(strategy, item):
         if strategy == 'FIFO':
             # Create Time
-            return task[4]
+            return item[1][4]
         elif strategy == 'FILO':
             # Create Time
-            return -task[4]
+            return -item[1][4]
         elif strategy == 'SPT':
             # Processing Time
-            return task[2]
+            return item[1][2]
         elif strategy == 'LPT':
             # Processing Time
-            return -task[2]
+            return -item[1][2]
         elif strategy == 'SRTPT':
             # Remaining Processing Time
-            return task[8]
+            return item[0][7]
         elif strategy == 'LRTPT':
             # Remaining Processing Time
-            return -task[8]
+            return -item[0][7]
+        elif strategy == 'LOR':
+            # Remaining Task Num
+            return item[0][8]
+        elif strategy == 'MOR':
+            # Remaining Task Num
+            return -item[0][8]
+        elif strategy == 'ERD':
+            # Create Time of the job
+            return item[0][2]
         else:
             raise Exception("Unknown Strategy")

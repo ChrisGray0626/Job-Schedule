@@ -5,6 +5,8 @@
   @Date 2023/6/24
 """
 
+from queue import PriorityQueue
+
 import pandas as pd
 
 import Util
@@ -28,6 +30,17 @@ def parse():
     print(task_processing_times)
 
 
+def priority_queue_test():
+    items = [(2, 'item2'), (1, 'item1'), (3, 'item3')]
+    pq = PriorityQueue()
+
+    pq.put(items)
+
+    while not pq.empty():
+        item = pq.get()
+        print(item)
+
+
 if __name__ == '__main__':
-    parse()
+    priority_queue_test()
     pass
