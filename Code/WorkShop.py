@@ -115,11 +115,12 @@ class WorkShop:
         return task_id
 
     def init_random_job(self, job_num):
-        current_times = np.full(self.job_type_num, 0)
+        current_time = 1
+        current_times = np.full(self.job_type_num, current_time)
         for i in range(0, job_num):
             for j in range(0, self.job_type_num):
                 self.add_job(j, current_times[j])
-                current_times[j] += np.random.randint(0, 1)
+                current_times[j] += 1
 
         self.release = False
 
@@ -133,6 +134,10 @@ class WorkShop:
         machine['next_idle_time'] = completed_time
         # Add the machine event
         self.events.put([completed_time, 0, work_centre_id, machine_id])
+        # Update the task
+        task['start_time'] = current_time
+        task['completed_time'] = completed_time
+        task['status'] = 1
         # Update the job
         job_id = task['job_id']
         job = self.jobs.loc[job_id]
@@ -160,15 +165,11 @@ class WorkShop:
             next_task_id = self.add_task(job_id, job_type, next_task_type, current_time)
             # Add the task event
             self.events.put([completed_time, 1, next_task_type, next_task_id])
-        # Update the task
-        task['start_time'] = current_time
-        task['completed_time'] = completed_time
-        task['status'] = 1
         # Update the operation
         operator_id = len(self.operations)
         self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
                                             completed_time]
-        # print(self.operations.loc[operator_id].T)
+        print(current_time, job_id, task_type)
 
     def schedule(self):
         while self.release or not self.events.empty():

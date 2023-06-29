@@ -14,9 +14,7 @@ if __name__ == '__main__':
     instance_path = "Data/Sample-Taillard.txt"
     task_schedule_strategy = Constant.scheduling_strategies[0]
     work_shop = WorkShop(instance_specification, instance_path, 3, task_schedule_strategy)
-    # Thread(target=work_shop.init_random_job(50)).start()
-    # Thread(target=work_shop.schedule).start()
-    work_shop.init_random_job(50)
+    work_shop.init_random_job(2)
     start_time = time.time()
     work_shop.schedule()
     end_time = time.time()

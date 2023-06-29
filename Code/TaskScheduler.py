@@ -9,7 +9,7 @@ from queue import PriorityQueue
 import Constant
 
 
-# TODO LOR, MOR, EDD, ERD, SS, CR
+# TODO EDD, SS, CR
 class TaskScheduler:
 
     def __init__(self, work_centre_num, strategy):
@@ -98,7 +98,7 @@ class SimpleTaskQueue(TaskQueue):
     def calc_priority(strategy, item):
         if strategy == 'FIFO':
             # Create Time
-            return item[1][4]
+            return item[1][4] * 1000 + item[0][0]
         elif strategy == 'FILO':
             # Create Time
             return -item[1][4]
