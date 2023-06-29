@@ -11,6 +11,7 @@ import pandas as pd
 
 import TaskScheduler
 import Util
+from Code import Constant
 
 pd.options.mode.chained_assignment = None
 
@@ -100,7 +101,7 @@ class WorkShop:
         # Add the first task
         first_task_id = self.add_task(job_id, job_type, first_task_type, current_time)
         # Add the task event
-        self.events.put([current_time, 1, first_task_type, first_task_id])
+        self.events.put([current_time, Constant.TASK_EVENT, first_task_type, first_task_id])
 
     def add_task(self, job_id, job_type, task_type, current_time):
         task_id = len(self.tasks)
@@ -133,7 +134,7 @@ class WorkShop:
         machine = self.machines.loc[machine_id]
         machine['next_idle_time'] = completed_time
         # Add the machine event
-        self.events.put([completed_time, 0, work_centre_id, machine_id])
+        self.events.put([completed_time, Constant.MACHINE_EVENT, work_centre_id, machine_id])
         # Update the task
         task['start_time'] = current_time
         task['completed_time'] = completed_time
@@ -164,7 +165,7 @@ class WorkShop:
             # Add the next task
             next_task_id = self.add_task(job_id, job_type, next_task_type, current_time)
             # Add the task event
-            self.events.put([completed_time, 1, next_task_type, next_task_id])
+            self.events.put([completed_time, Constant.TASK_EVENT, next_task_type, next_task_id])
         # Update the operation
         operator_id = len(self.operations)
         self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
@@ -175,14 +176,14 @@ class WorkShop:
         while self.release or not self.events.empty():
             current_time, event_type, work_centre_id, param = self.events.get(block=True)
             # Machine event
-            if event_type == 0:
+            if event_type == Constant.MACHINE_EVENT:
                 machine_id = param
                 task_id = self.task_scheduler.poll(work_centre_id)
-                if task_id == -1:
+                if task_id == -1 or machine_id == -1:
                     continue
                 self.process(current_time, work_centre_id, machine_id, task_id)
             # Task event
-            elif event_type == 1:
+            elif event_type == Constant.TASK_EVENT:
                 task_id = param
                 task = self.tasks.loc[task_id]
                 job_id = task['job_id']

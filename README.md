@@ -55,13 +55,13 @@ pip install -r requirements.txt
 
 It means that the machine is idle.
 
-`event_type` = 0
+`event_type` = 1
 
 ### Task Event
 
 It means that the new task is created.
 
-`event_type` = 1
+`event_type` = 0
 
 # Task Schedule Strategy
 

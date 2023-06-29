@@ -82,17 +82,21 @@ class SimpleTaskQueue(TaskQueue):
 
     def add(self, item):
         priority = self.calc_priority(self.strategy, item)
+        # Job ID as the second priority
+        job_id = item[0][0]
         # Task ID
         task_id = item[1][0]
-        super().add((priority, task_id))
+        super().add((priority, job_id, task_id))
 
     def peek(self):
-        return super().peek()[1]
+        # Task ID
+        return super().peek()[2]
 
     def poll(self):
         if super().is_empty():
             return -1
-        return super().poll()[1]
+        # Task ID
+        return super().poll()[2]
 
     @staticmethod
     def calc_priority(strategy, item):
