@@ -133,7 +133,7 @@ class WorkShop:
         # Update the machine
         machine = self.machines.loc[machine_id]
         machine['next_idle_time'] = completed_time
-        # Add the machine event
+        # Add the machine event to find a task to process
         self.events.put([completed_time, Constant.MACHINE_EVENT, work_centre_id, machine_id])
         # Update the task
         task['start_time'] = current_time
@@ -164,7 +164,7 @@ class WorkShop:
             job['remaining_task_num'] -= 1
             # Add the next task
             next_task_id = self.add_task(job_id, job_type, next_task_type, current_time)
-            # Add the task event
+            # Add the task event to add the next task to the queue
             self.events.put([completed_time, Constant.TASK_EVENT, next_task_type, next_task_id])
         # Update the operation
         operator_id = len(self.operations)
@@ -178,10 +178,20 @@ class WorkShop:
             # Machine event
             if event_type == Constant.MACHINE_EVENT:
                 machine_id = param
-                task_id = self.task_scheduler.poll(work_centre_id)
-                if task_id == -1 or machine_id == -1:
-                    continue
-                self.process(current_time, work_centre_id, machine_id, task_id)
+                # There are tasks in the queue need to be processed
+                if machine_id == -1:
+                    # Find the idle machines
+                    machine_ids = self.find_idle_machine(work_centre_id, current_time)
+                    for machine_id in machine_ids:
+                        if not self.task_scheduler.is_empty(work_centre_id):
+                            task_id = self.task_scheduler.poll(work_centre_id)
+                            self.process(current_time, work_centre_id, machine_id, task_id)
+                # The machine is idle
+                else:
+                    # Find a task in the queue
+                    if not self.task_scheduler.is_empty(work_centre_id):
+                        task_id = self.task_scheduler.poll(work_centre_id)
+                        self.process(current_time, work_centre_id, machine_id, task_id)
             # Task event
             elif event_type == Constant.TASK_EVENT:
                 task_id = param
@@ -191,19 +201,14 @@ class WorkShop:
                 self.task_scheduler.add(work_centre_id, (job, task))
                 # Check if there is the only one task in the queue
                 if self.task_scheduler.size(work_centre_id) == 1:
-                    # Choose a idle machine
-                    machine_id = self.choose_machine(work_centre_id, current_time)
-                    if machine_id == -1:
-                        # There is no idle machine
-                        continue
-                    task_id = self.task_scheduler.poll(work_centre_id)
-                    self.process(current_time, work_centre_id, machine_id, task_id)
+                    # Add the machine event to notify the idle machine
+                    self.events.put([current_time, Constant.MACHINE_EVENT, work_centre_id, -1])
 
     def find_idle_machine(self, work_centre_id, current_time):
-        machines = self.machines[
-            (self.machines['work_centre_id'] == work_centre_id) & (self.machines['next_idle_time'] <= current_time)]
+        machine_ids = self.machines[
+            (self.machines['work_centre_id'] == work_centre_id) & (self.machines['next_idle_time'] <= current_time)]['machine_id']
 
-        return machines
+        return machine_ids
 
     def find_work_centre_machine(self, work_centre_id):
         machines = self.machines[(self.machines['work_centre_id'] == work_centre_id)]
