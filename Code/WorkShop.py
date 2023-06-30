@@ -70,12 +70,12 @@ class WorkShop:
 
     def init_job(self):
         self.jobs = pd.DataFrame(
-            columns=['job_id', 'job_type', 'create_time', 'start_time', 'completed_time', 'current_task_type',
+            columns=['job_id', 'job_type', 'release_time', 'start_time', 'completed_time', 'current_task_type',
                      'status', 'remaining_process_time', 'remaining_task_num']).astype(int)
 
     def init_task(self):
         self.tasks = pd.DataFrame(
-            columns=['task_id', 'job_id', 'task_type', 'processing_time', 'create_time', 'start_time', 'completed_time',
+            columns=['task_id', 'job_id', 'task_type', 'processing_time', 'release_time', 'start_time', 'completed_time',
                      'status']).astype(int)
 
     def init_operation(self):
@@ -87,7 +87,7 @@ class WorkShop:
 
     def add_job(self, job_type, current_time):
         job_id = len(self.jobs)
-        create_time = current_time
+        release_time = current_time
         start_time = -1
         completed_time = -1
         first_task_type = self.job_first_task[job_type]
@@ -95,7 +95,7 @@ class WorkShop:
         remaining_process_time = self.remaining_processing_time_mat[job_type][first_task_type]
         remaining_task_num = self.job_task_num
         # Add the job
-        job = [job_id, job_type, create_time, start_time, completed_time, first_task_type, status,
+        job = [job_id, job_type, release_time, start_time, completed_time, first_task_type, status,
                remaining_process_time, remaining_task_num]
         self.jobs.loc[job_id] = job
         # Add the first task
@@ -106,11 +106,11 @@ class WorkShop:
     def add_task(self, job_id, job_type, task_type, current_time):
         task_id = len(self.tasks)
         processing_time = self.task_processing_times[job_type][task_type]
-        create_time = current_time
+        release_time = current_time
         start_time = -1
         completed_time = -1
         status = 0
-        task = [task_id, job_id, task_type, processing_time, create_time, start_time, completed_time, status]
+        task = [task_id, job_id, task_type, processing_time, release_time, start_time, completed_time, status]
         self.tasks.loc[task_id] = task
 
         return task_id

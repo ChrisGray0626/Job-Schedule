@@ -16,7 +16,7 @@ pip install -r requirements.txt
 
 1. `job_id`
 2. `job_type`
-3. `create_time`
+3. `release_time`
 4. `start_time`
 5. `completed_time`
 6. `current_task_type`
@@ -30,7 +30,7 @@ pip install -r requirements.txt
 2. `job_id`
 3. `task_type`
 4. `processing_time`
-5. `create_time`
+5. `release_time`
 6. `start_time`
 7. `completed_time`
 8. `status`

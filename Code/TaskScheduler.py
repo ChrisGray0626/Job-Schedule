@@ -101,10 +101,10 @@ class SimpleTaskQueue(TaskQueue):
     @staticmethod
     def calc_priority(strategy, item):
         if strategy == 'FIFO':
-            # Create Time
+            # Release Time
             return item[1][4] * 1000 + item[0][0]
         elif strategy == 'FILO':
-            # Create Time
+            # Release Time
             return -item[1][4]
         elif strategy == 'SPT':
             # Processing Time
@@ -125,7 +125,7 @@ class SimpleTaskQueue(TaskQueue):
             # Remaining Task Num
             return -item[0][8]
         elif strategy == 'ERD':
-            # Create Time of the job
+            # Release Time of the job
             return item[0][2]
         else:
             raise Exception("Unknown Strategy")
