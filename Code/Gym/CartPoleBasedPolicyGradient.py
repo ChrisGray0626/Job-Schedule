@@ -15,26 +15,26 @@ class CartPoleBasedPolicyGradient(CartPoleSolution):
 
     def __init__(self):
         super().__init__()
-        self.model = torch.nn.Sequential(
+        self.policy_model = torch.nn.Sequential(
             torch.nn.Linear(4, 128),
             torch.nn.ReLU(),
             torch.nn.Linear(128, 2),
             torch.nn.Softmax(dim=1),
         )
 
-        self.model(torch.randn(2, 4))
+        self.policy_model.forward(torch.randn(2, 4))
 
     def choose_action(self, state):
         state = torch.FloatTensor(state).reshape(1, 4)
         # [1, 4] -> [1, 2]
-        prob = self.model.forward(state)
+        prob = self.policy_model.forward(state)
         # 根据概率选择一个动作
         action = random.choices(range(2), weights=prob[0].tolist(), k=1)[0]
 
         return action
 
     def train(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.policy_model.parameters(), lr=1e-3)
 
         # 玩N局游戏,每局游戏训练一次
         for epoch in range(1000):
@@ -54,7 +54,7 @@ class CartPoleBasedPolicyGradient(CartPoleSolution):
                 # 重新计算对应动作的概率
                 state = torch.FloatTensor(states[i]).reshape(1, 4)
                 # [1, 4] -> [1, 2]
-                prob = self.model.forward(state)
+                prob = self.policy_model.forward(state)
                 # [1, 2] -> scala
                 prob = prob[0, actions[i]]
                 # 根据求导公式,符号取反是因为这里是求loss,所以优化方向相反

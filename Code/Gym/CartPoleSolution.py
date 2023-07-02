@@ -4,6 +4,8 @@
   @Author Chris
   @Date 2023/7/2
 """
+import abc
+
 import numpy as np
 import torch
 
@@ -15,6 +17,7 @@ class CartPoleSolution:
     def __init__(self):
         self.env = CartPoleEnv()
 
+    @abc.abstractmethod
     def choose_action(self, state):
         pass
 
@@ -44,6 +47,7 @@ class CartPoleSolution:
 
         return reward_sum
 
+    @abc.abstractmethod
     def train(self):
         pass
 

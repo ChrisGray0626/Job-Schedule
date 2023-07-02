@@ -4,71 +4,37 @@
   @Author Chris
   @Date 2023/7/2
 """
-import random
-
 import torch
 
-from CartPoleSolution import CartPoleSolution
+from CartPoleBasedAC import CartPoleBasedAC
+from CartPoleBasedDQN import CartPoleBasedDQN
 
 
-class CartPoleBasedDQN(CartPoleSolution):
+class CartPoleBasedPPO(CartPoleBasedAC):
+
     def __init__(self):
         super().__init__()
-        self.value_model = torch.nn.Sequential(
-            torch.nn.Linear(4, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, 2),
-            torch.nn.Softmax(dim=1),
-        )
-        self.model_td = torch.nn.Sequential(
-            torch.nn.Linear(4, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, 1),
-        )
-
-        self.value_model.forward(torch.randn(2, 4)), self.model_td.forward(torch.randn(2, 4))
-
-    def choose_action(self, state):
-        state = torch.FloatTensor(state).reshape(1, 4)
-        # [1, 4] -> [1, 2]
-        prob = self.value_model.forward(state)
-        # 根据概率选择一个动作
-        action = random.choices(range(2), weights=prob[0].tolist(), k=1)[0]
-
-        return action
-
-    @staticmethod
-    def calc_advantage(deltas):
-        advantages = []
-        # 反向遍历 deltas
-        s = 0.0
-        for delta in deltas[::-1]:
-            s = 0.98 * 0.95 * s + delta
-            advantages.append(s)
-        # 逆序
-        advantages.reverse()
-
-        return advantages
 
     def train(self):
-        optimizer = torch.optim.Adam(self.value_model.parameters(), lr=1e-3)
-        optimizer_td = torch.optim.Adam(self.model_td.parameters(), lr=1e-2)
+        optimizer = torch.optim.Adam(self.policy_model.parameters(), lr=1e-3)
+        optimizer_td = torch.optim.Adam(self.value_model.parameters(), lr=1e-2)
         loss_fn = torch.nn.MSELoss()
+
         # 玩N局游戏,每局游戏训练M次
         for epoch in range(500):
             # 玩一局游戏,得到数据
-            trajectory = self.env.play(self.choose_action, False)
             # states -> [b, 4]
             # rewards -> [b, 1]
             # actions -> [b, 1]
             # next_states -> [b, 4]
-            # is_overs -> [b, 1]
+            # overs -> [b, 1]
+            trajectory = self.env.play(self.choose_action, False)
             states, rewards, actions, next_states, is_overs = self.parse_trajectory(trajectory)
             # 计算values和targets
             # [b, 4] -> [b, 1]
-            values = self.model_td.forward(states)
+            values = self.value_model.forward(states)
             # [b, 4] -> [b, 1]
-            targets = self.model_td.forward(next_states).detach()
+            targets = self.value_model.forward(next_states).detach()
             targets = targets * 0.98
             targets *= (1 - is_overs)
             targets += rewards
@@ -76,18 +42,18 @@ class CartPoleBasedDQN(CartPoleSolution):
             # 只是这里计算的不是reward,而是target和value的差
             # [b, 1]
             deltas = (targets - values).squeeze(dim=1).tolist()
-            advantages = self.calc_advantage(deltas)
+            advantages = CartPoleBasedDQN().calc_advantage(deltas)
             advantages = torch.FloatTensor(advantages).reshape(-1, 1)
             # 取出每一步动作的概率
             # [b, 2] -> [b, 2] -> [b, 1]
-            old_probs = self.value_model.forward(states)
+            old_probs = self.policy_model.forward(states)
             old_probs = old_probs.gather(dim=1, index=actions)
             old_probs = old_probs.detach()
             # 每批数据反复训练10次
             for _ in range(10):
                 # 重新计算每一步动作的概率
                 # [b, 4] -> [b, 2]
-                new_probs = self.value_model.forward(states)
+                new_probs = self.policy_model.forward(states)
                 # [b, 2] -> [b, 1]
                 new_probs = new_probs.gather(dim=1, index=actions)
                 new_probs = new_probs
@@ -102,7 +68,7 @@ class CartPoleBasedDQN(CartPoleSolution):
                 loss = -torch.min(surr1, surr2)
                 loss = loss.mean()
                 # 重新计算value,并计算时序差分loss
-                values = self.model_td.forward(states)
+                values = self.value_model.forward(states)
                 loss_td = loss_fn(values, targets)
                 # 更新参数
                 optimizer.zero_grad()
@@ -111,13 +77,14 @@ class CartPoleBasedDQN(CartPoleSolution):
                 optimizer_td.zero_grad()
                 loss_td.backward()
                 optimizer_td.step()
+
             if (epoch + 1) % 50 == 0:
                 test_result = sum([self.test(play=False) for _ in range(10)]) / 10
                 print(epoch + 1, test_result)
 
 
 if __name__ == '__main__':
-    cart_pole = CartPoleBasedDQN()
+    cart_pole = CartPoleBasedAC()
     cart_pole.train()
     cart_pole.test(play=False)
     pass
