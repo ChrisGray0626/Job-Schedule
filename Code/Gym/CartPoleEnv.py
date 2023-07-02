@@ -17,18 +17,19 @@ class CartPoleEnv(gym.Wrapper):
     def __init__(self):
         env = gym.make('CartPole-v1', render_mode='rgb_array')
         super().__init__(env)
-        self.env = env
-        self.step_n = 0
+        self.count = 0
 
     def reset(self):
         state, _ = self.env.reset()
-        self.step_n = 0
+        self.count = 0
         return state
 
     def execute(self, action):
         state, reward, terminated, truncated, info = self.env.step(action)
         is_over = terminated or truncated
-        self.step_n += 1
+        self.count += 1
+        if self.count >= 200:
+            is_over = True
 
         return state, reward, is_over, info
 

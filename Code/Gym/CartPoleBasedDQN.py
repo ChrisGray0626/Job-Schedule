@@ -6,15 +6,14 @@
 """
 import random
 
-import numpy as np
-
-from CartPoleEnv import CartPoleEnv
 import torch
 
+from CartPoleSolution import CartPoleSolution
 
-class CartPoleBasedDQN:
+
+class CartPoleSolutionBasedDQN(CartPoleSolution):
     def __init__(self):
-        self.env = CartPoleEnv()
+        super().__init__()
         self.model = torch.nn.Sequential(
             torch.nn.Linear(4, 128),
             torch.nn.ReLU(),
@@ -28,7 +27,6 @@ class CartPoleBasedDQN:
         )
 
         self.model.forward(torch.randn(2, 4)), self.model_td.forward(torch.randn(2, 4))
-        self.trajectory = []
 
     def choose_action(self, state):
         state = torch.FloatTensor(state).reshape(1, 4)
@@ -38,32 +36,6 @@ class CartPoleBasedDQN:
         action = random.choices(range(2), weights=prob[0].tolist(), k=1)[0]
 
         return action
-
-    @staticmethod
-    def sample_data(trajectory):
-        # [b, 4]
-        states = np.array([i[0] for i in trajectory])
-        states = torch.FloatTensor(states).reshape(-1, 4)
-        # [b, 1]
-        rewards = np.array([i[1] for i in trajectory])
-        rewards = torch.FloatTensor(rewards).reshape(-1, 1)
-        # [b, 1]
-        actions = np.array([i[2] for i in trajectory])
-        actions = torch.LongTensor(actions).reshape(-1, 1)
-        # [b, 4]
-        next_states = np.array([i[3] for i in trajectory])
-        next_states = torch.FloatTensor(next_states).reshape(-1, 4)
-        # [b, 1]
-        is_overs = np.array([i[4] for i in trajectory])
-        is_overs = torch.LongTensor(is_overs).reshape(-1, 1)
-
-        return states, rewards, actions, next_states, is_overs
-
-    def test(self, play):
-        trajectory = self.env.play(self.choose_action, play)
-        reward_sum = sum([i[1] for i in trajectory])
-
-        return reward_sum
 
     @staticmethod
     def calc_advantage(deltas):
@@ -91,7 +63,7 @@ class CartPoleBasedDQN:
             # actions -> [b, 1]
             # next_states -> [b, 4]
             # is_overs -> [b, 1]
-            states, rewards, actions, next_states, is_overs = self.sample_data(trajectory)
+            states, rewards, actions, next_states, is_overs = self.parse_trajectory(trajectory)
             # 计算values和targets
             # [b, 4] -> [b, 1]
             values = self.model_td.forward(states)
@@ -145,7 +117,7 @@ class CartPoleBasedDQN:
 
 
 if __name__ == '__main__':
-    cart_pole = CartPoleBasedDQN()
+    cart_pole = CartPoleSolutionBasedDQN()
     cart_pole.train()
     cart_pole.test(play=False)
     pass
