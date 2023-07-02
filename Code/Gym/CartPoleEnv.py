@@ -1,0 +1,56 @@
+# -*- coding: utf-8 -*-
+"""
+  @Description
+  @Author Chris
+  @Date 2023/7/2
+"""
+import random
+
+import gym
+import matplotlib.pyplot as plt
+import os
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
+
+class CartPoleEnv(gym.Wrapper):
+    def __init__(self):
+        env = gym.make('CartPole-v1', render_mode='rgb_array')
+        super().__init__(env)
+        self.env = env
+        self.step_n = 0
+
+    def reset(self):
+        state, _ = self.env.reset()
+        self.step_n = 0
+        return state
+
+    def execute(self, action):
+        state, reward, terminated, truncated, info = self.env.step(action)
+        is_over = terminated or truncated
+        self.step_n += 1
+
+        return state, reward, is_over, info
+
+    def play(self, choose_action, play=False):
+        state = self.reset()
+        is_over = False
+        trajectory = []
+        while not is_over:
+            action = choose_action(state)
+            next_state, reward, is_over, _ = self.execute(action)
+            trajectory.append([state, reward, action, next_state, is_over])
+            state = next_state
+            # 打印动画
+            if play and random.random() < 0.2:  # 跳帧
+                self.show()
+
+        return trajectory
+
+    def show(self):
+        plt.imshow(self.env.render())
+        plt.show()
+
+
+if __name__ == '__main__':
+    pass
