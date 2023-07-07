@@ -33,7 +33,10 @@ class CartPoleEnv(gym.Wrapper):
 
         return state, reward, is_over, info
 
-    def play(self, choose_action, play=False):
+    def play(self, choose_action=None, play=False):
+        if choose_action is None:
+            choose_action = self.choose_random_action
+
         state = self.reset()
         is_over = False
         trajectory = []
@@ -47,6 +50,9 @@ class CartPoleEnv(gym.Wrapper):
                 self.show()
 
         return trajectory
+
+    def choose_random_action(self, state):
+        return self.env.action_space.sample()
 
     def show(self):
         plt.imshow(self.env.render())
