@@ -34,10 +34,11 @@ class TaskScheduler:
     def is_empty(self, task_type):
         return self.task_queues[task_type].is_empty()
 
-    def is_end(self):
+    def is_over(self):
         for i in range(self.work_centre_num):
             if not self.is_empty(i):
                 return False
+
         return True
 
     def size(self, task_type):
@@ -227,7 +228,6 @@ class DynamicTaskQueue:
         return self.queue.shape[0]
 
 
-# TODO DRLScheduler execute
 class DynamicTaskScheduler:
 
     def __init__(self, task_type):
@@ -246,10 +246,11 @@ class DynamicTaskScheduler:
     def is_empty(self, task_type):
         return self.task_queues[task_type].is_empty()
 
-    def is_end(self):
+    def is_over(self):
         for i in range(self.task_type):
             if not self.is_empty(i):
                 return False
+
         return True
 
     def size(self, task_type):

@@ -17,6 +17,7 @@ class WorkShopBasedDRL(WorkShopSolution):
     def __init__(self, _work_shop):
         super().__init__(_work_shop, Constant.DYNAMICAL_SCHEDULING_STRATEGY)
         self.task_scheduler = DynamicTaskScheduler(self.work_shop.task_type)
+        # TODO DRL Model
 
     def choose_action(self, state):
         action = 0
