@@ -96,5 +96,10 @@ def generate_uuid():
     return uuid.uuid1().hex
 
 
+def print_row(rows):
+    for row in rows:
+        print(row)
+
+
 if __name__ == '__main__':
     pass

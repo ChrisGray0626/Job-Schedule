@@ -5,8 +5,9 @@
   @Date 2023/6/28
 """
 
-classical_scheduling_strategies = ["FIFO", "FILO", "SPT", "LPT", "SRTPT", "LRTPT", "LOR", "MOR", "ERD"]
-scheduling_strategies = classical_scheduling_strategies
+CLASSICAL_SCHEDULING_STRATEGIES = ["FIFO", "FILO", "SPT", "LPT", "SRTPT", "LRTPT", "LOR", "MOR", "ERD"]
+DYNAMICAL_SCHEDULING_STRATEGY = "DYNAMIC"
+SCHEDULING_STRATEGIES = CLASSICAL_SCHEDULING_STRATEGIES + [DYNAMICAL_SCHEDULING_STRATEGY]
 
 TASK_EVENT = 0
 MACHINE_EVENT = 1

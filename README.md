@@ -74,8 +74,3 @@ It means that the new task is created.
 - LOR
 - MOR
 - ERD
-
-# Problem
-
-During initialization, a large number of tasks will be added to the task queue. Since the priority queue is used, it
-will be a little time-consuming.

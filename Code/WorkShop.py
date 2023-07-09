@@ -9,7 +9,6 @@ from queue import PriorityQueue
 import numpy as np
 import pandas as pd
 
-import TaskScheduler
 import Util
 from Code import Constant
 
@@ -18,10 +17,10 @@ pd.options.mode.chained_assignment = None
 
 class WorkShop:
 
-    def __init__(self, instance_specification, instance_path, parallel_machine_num, task_schedule_strategy):
+    def __init__(self, instance_specification, instance_path, parallel_machine_num):
         self.instance_specification = instance_specification
         self.instance_path = instance_path
-        self.work_centre_num = None
+        self.task_type = None
         self.parallel_machine_num = parallel_machine_num
         self.machines = None
         self.job_type_num = None
@@ -34,8 +33,6 @@ class WorkShop:
         self.task_processing_times = None
         self.tasks = None
         self.operations = None
-        self.task_schedule_strategy = task_schedule_strategy
-        self.task_scheduler = None
         self.events = PriorityQueue()
         self.release = True
         self.init()
@@ -46,7 +43,6 @@ class WorkShop:
         self.init_job()
         self.init_task()
         self.init_operation()
-        self.init_task_scheduler()
 
     def init_definition(self):
         self.job_type_num, self.job_task_num, self.job_tasks, self.task_processing_times = Util.parse_definition(
@@ -62,8 +58,8 @@ class WorkShop:
 
     def init_machine(self):
         self.machines = pd.DataFrame(columns=['machine_id', 'work_centre_id', 'next_idle_time']).astype(int)
-        self.work_centre_num = self.job_task_num
-        for i in range(0, self.work_centre_num):
+        self.task_type = self.job_task_num
+        for i in range(0, self.task_type):
             for j in range(0, self.parallel_machine_num):
                 machine_id = len(self.machines)
                 self.machines.loc[machine_id] = [machine_id, i, 0]
@@ -81,9 +77,6 @@ class WorkShop:
     def init_operation(self):
         self.operations = pd.DataFrame(
             columns=['operation_id', 'job_type', 'task_type', 'machine_id', 'start_time', 'completed_time']).astype(int)
-
-    def init_task_scheduler(self):
-        self.task_scheduler = TaskScheduler.TaskScheduler(self.work_centre_num, self.task_schedule_strategy)
 
     def add_job(self, job_type, current_time):
         job_id = len(self.jobs)
@@ -170,39 +163,8 @@ class WorkShop:
         operator_id = len(self.operations)
         self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
                                             completed_time]
-        print(current_time, job_id, task_type)
 
-    def schedule(self):
-        while self.release or not self.events.empty():
-            current_time, event_type, work_centre_id, param = self.events.get(block=True)
-            # Machine event
-            if event_type == Constant.MACHINE_EVENT:
-                machine_id = param
-                # There are tasks in the queue need to be processed
-                if machine_id == -1:
-                    # Find the idle machines
-                    machine_ids = self.find_idle_machine(work_centre_id, current_time)
-                    for machine_id in machine_ids:
-                        if not self.task_scheduler.is_empty(work_centre_id):
-                            task_id = self.task_scheduler.poll(work_centre_id)
-                            self.process(current_time, work_centre_id, machine_id, task_id)
-                # The machine is idle
-                else:
-                    # Find a task in the queue
-                    if not self.task_scheduler.is_empty(work_centre_id):
-                        task_id = self.task_scheduler.poll(work_centre_id)
-                        self.process(current_time, work_centre_id, machine_id, task_id)
-            # Task event
-            elif event_type == Constant.TASK_EVENT:
-                task_id = param
-                task = self.tasks.loc[task_id]
-                job_id = task['job_id']
-                job = self.jobs.loc[job_id]
-                self.task_scheduler.add(work_centre_id, (job, task))
-                # Check if there is the only one task in the queue
-                if self.task_scheduler.size(work_centre_id) == 1:
-                    # Add the machine event to notify the idle machine
-                    self.events.put([current_time, Constant.MACHINE_EVENT, work_centre_id, -1])
+        return job_id, task_type
 
     def find_idle_machine(self, work_centre_id, current_time):
         machine_ids = self.machines[
