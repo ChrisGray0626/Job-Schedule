@@ -8,6 +8,7 @@
 from queue import PriorityQueue
 
 import pandas as pd
+import torch
 
 import Util
 
@@ -41,6 +42,13 @@ def priority_queue_test():
         print(item)
 
 
+def torch_test():
+    print(torch.__version__)
+    print(torch.cuda.is_available())
+    print(torch.cuda.device_count())
+    print(torch.cuda.get_device_name(0))
+
+
 if __name__ == '__main__':
-    priority_queue_test()
+    torch_test()
     pass
