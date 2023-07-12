@@ -74,3 +74,10 @@ It means that the new task is created.
 - LOR
 - MOR
 - ERD
+
+# PyTorch (GPU)
+
+- torch 1.13.0+cu116
+- torchaudio 0.13.0
+- torchvision 0.14
+

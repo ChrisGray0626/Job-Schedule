@@ -155,10 +155,8 @@ class WorkShopBasedDRL(WorkShopSolution):
 
         return advantages
 
+
 if __name__ == '__main__':
-    print(torch.cuda.is_available())
-    print(torch.cuda.device_count())
-    print(torch.cuda.get_device_name(0))
     instance_specification = "Taillard"
     instance_path = "../Data/Sample-Taillard.txt"
     work_shop = WorkShop(instance_specification, instance_path, 3)
