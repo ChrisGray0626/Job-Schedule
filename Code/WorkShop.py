@@ -78,6 +78,14 @@ class WorkShop:
         self.operations = pd.DataFrame(
             columns=['operation_id', 'job_type', 'task_type', 'machine_id', 'start_time', 'completed_time']).astype(int)
 
+    def reset(self):
+        self.machines['next_idle_time'] = 0
+        self.jobs = self.jobs.drop(self.jobs.index)
+        self.tasks = self.tasks.drop(self.tasks.index)
+        self.operations = self.operations.drop(self.operations.index)
+        self.events = PriorityQueue()
+        self.release = True
+
     def add_job(self, job_type, current_time):
         job_id = len(self.jobs)
         release_time = current_time
@@ -126,6 +134,7 @@ class WorkShop:
         # Update the machine
         machine = self.machines.loc[machine_id]
         machine['next_idle_time'] = completed_time
+        self.machines.loc[machine_id] = machine
         # Add the machine event to find a task to process
         self.events.put([completed_time, Constant.MACHINE_EVENT, work_centre_id, machine_id])
         # Update the task

@@ -12,7 +12,7 @@ import Constant
 
 
 # TODO EDD, SS, CR
-class TaskScheduler:
+class ClassicalTaskScheduler:
 
     def __init__(self, work_centre_num, strategy):
         self.work_centre_num = work_centre_num
@@ -136,6 +136,35 @@ class ClassicalTaskQueue(TaskQueue):
             raise Exception("Unknown Strategy")
 
 
+class DynamicTaskScheduler:
+
+    def __init__(self, task_type):
+        self.task_type = task_type
+        self.task_queues = []
+
+        for i in range(task_type):
+            self.task_queues.append(DynamicTaskQueue())
+
+    def add(self, task_type, item):
+        self.task_queues[task_type].add(item)
+
+    def execute(self, current_time, task_type, choose_strategy):
+        return self.task_queues[task_type].execute(current_time, choose_strategy)
+
+    def is_empty(self, task_type):
+        return self.task_queues[task_type].is_empty()
+
+    def is_over(self):
+        for i in range(self.task_type):
+            if not self.is_empty(i):
+                return False
+
+        return True
+
+    def size(self, task_type):
+        return self.task_queues[task_type].size()
+
+
 class DynamicTaskQueue:
 
     def __init__(self):
@@ -149,8 +178,9 @@ class DynamicTaskQueue:
 
     def add(self, item):
         job = item[0]
-        job = job[1:-1]
-        job = job.rename(index={'release_time': 'job_release_time',  'start_time': 'job_start_time', 'completed_time': 'job_completed_time', 'status': 'job_status'})
+        job = job[1:]
+        job = job.rename(index={'release_time': 'job_release_time', 'start_time': 'job_start_time',
+                                'completed_time': 'job_completed_time', 'status': 'job_status'})
         task = item[1]
         task = pd.concat([task, job])
         self.queue.loc[task.loc['task_id']] = task
@@ -170,6 +200,9 @@ class DynamicTaskQueue:
 
     def calc_state(self, current_time):
         task_num = self.size()
+        if task_num == 0:
+            return [0, 0, 0]
+
         mean_waiting_time = current_time - self.queue['release_time'].mean()
         max_waiting_time = current_time - self.queue['release_time'].max()
         mean_remaining_process_time = self.queue['remaining_process_time'].mean()
@@ -226,32 +259,3 @@ class DynamicTaskQueue:
 
     def size(self):
         return self.queue.shape[0]
-
-
-class DynamicTaskScheduler:
-
-    def __init__(self, task_type):
-        self.task_type = task_type
-        self.task_queues = []
-
-        for i in range(task_type):
-            self.task_queues.append(DynamicTaskQueue())
-
-    def add(self, task_type, item):
-        self.task_queues[task_type].add(item)
-
-    def execute(self, current_time, task_type, choose_strategy):
-        return self.task_queues[task_type].execute(current_time, choose_strategy)
-
-    def is_empty(self, task_type):
-        return self.task_queues[task_type].is_empty()
-
-    def is_over(self):
-        for i in range(self.task_type):
-            if not self.is_empty(i):
-                return False
-
-        return True
-
-    def size(self, task_type):
-        return self.task_queues[task_type].size()
