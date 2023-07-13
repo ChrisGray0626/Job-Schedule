@@ -33,7 +33,7 @@ class ClassicalTaskScheduler:
         elif strategy == 'SRTPT':
             idx = tasks['remaining_process_time'].idxmin()
         elif strategy == 'LRTPT':
-            idx = tasks['remaining_process_time'].idmax()
+            idx = tasks['remaining_process_time'].idxmax()
         elif strategy == 'LOR':
             idx = tasks['remaining_task_num'].idxmin()
         elif strategy == 'MOR':

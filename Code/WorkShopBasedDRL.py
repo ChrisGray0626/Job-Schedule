@@ -44,15 +44,22 @@ class WorkShopBasedDRL(WorkShopSolution):
         # 根据概率选择一个动作
         action = random.choices(range(self.output_size), weights=prob[0].tolist(), k=1)[0]
 
-        return 0
+        return action
 
     @staticmethod
     def calc_state(current_time, tasks, jobs):
-        return np.array([current_time, len(tasks), len(jobs)])
+        task_num = len(tasks)
+        mean_waiting_time = current_time - tasks['release_time'].mean()
+        mean_processing_time = tasks['processing_time'].mean()
+
+        return np.array([task_num, mean_waiting_time, mean_processing_time])
 
     @staticmethod
-    def calc_reward():
-        return 1
+    def calc_reward(current_time, tasks, jobs):
+        mean_waiting_time = current_time - tasks['release_time'].mean()
+        reward = -mean_waiting_time
+
+        return reward
 
     def schedule(self, current_time, task_type, tasks, jobs, machine_id, print_flag=False):
         # Calculate the state
@@ -60,18 +67,18 @@ class WorkShopBasedDRL(WorkShopSolution):
         action = self.choose_action(state)
         strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[action]
         task_id = self.task_scheduler.execute(strategy, tasks, jobs)
-        job_id = self.work_shop.process(current_time, task_type, machine_id, task_id)
+        job_id, completed_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
         # Calculate the next state
-        next_tasks = self.work_shop.find_pending_task(task_type, current_time)
-        next_jobs = self.work_shop.find_pending_job(task_type, current_time)
-        next_state = self.calc_state(current_time, next_tasks, next_jobs)
+        next_tasks = self.work_shop.find_pending_task(task_type, completed_time)
+        next_jobs = self.work_shop.find_pending_job(task_type, completed_time)
+        next_state = self.calc_state(completed_time, next_tasks, next_jobs)
         # Calculate the reward
-        reward = self.calc_reward()
+        reward = self.calc_reward(completed_time, next_tasks, next_jobs)
         # Calculate the is_over
-        is_over = (next_tasks['status'] == 0).sum() == 0
+        is_over = len(next_tasks) == 0
 
         if print_flag:
-            print(current_time, job_id, task_type)
+            print(current_time, job_id, task_type, strategy)
 
         return state, reward, action, next_state, is_over
 
@@ -134,11 +141,11 @@ class WorkShopBasedDRL(WorkShopSolution):
                 reward_sum = self.test()
                 print(epoch + 1, reward_sum)
 
-    def test(self, is_print=False):
-        trajectory = self.execute(is_print)
+    def test(self, print_flag=False):
+        trajectory = self.execute(print_flag)
         reward_sum = sum([i[1] for i in trajectory])
 
-        if is_print:
+        if print_flag:
             self.print_result()
 
         return reward_sum
@@ -182,7 +189,7 @@ if __name__ == '__main__':
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopBasedDRL(work_shop)
 
-    solution.train(1)
-    solution.test(True)
+    solution.train(100)
+    solution.test(print_flag=True)
 
     pass

@@ -159,7 +159,7 @@ class WorkShop:
         # self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
         #                                     completed_time]
 
-        return job_id
+        return job_id, completed_time
 
     def find_idle_machine(self, work_centre_id, current_time):
         machine_ids = self.machines[

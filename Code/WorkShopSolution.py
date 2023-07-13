@@ -23,7 +23,7 @@ class WorkShopSolution:
 
     def schedule(self, current_time, task_type, tasks, jobs, machine_id, print_flag=False):
         task_id = self.task_scheduler.execute(self.task_schedule_strategy, tasks, jobs)
-        job_id = self.work_shop.process(current_time, task_type, machine_id, task_id)
+        job_id, completed_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
 
         if print_flag:
             print(current_time, job_id, task_type)
@@ -42,6 +42,12 @@ class WorkShopSolution:
                 for machine_id in machine_ids:
                     tasks = self.work_shop.find_pending_task(task_type, current_time)
                     if len(tasks) == 0:
+                        continue
+                    if len(tasks) == 1:
+                        task_id = tasks.index[0]
+                        job_id, completed_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
+                        if print_flag:
+                            print(current_time, job_id, task_type)
                         continue
                     jobs = self.work_shop.find_pending_job(task_type, current_time)
                     info = self.schedule(current_time, task_type, tasks, jobs, machine_id, print_flag)
