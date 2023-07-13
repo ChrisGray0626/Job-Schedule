@@ -111,30 +111,26 @@ class WorkShop:
 
         return task_id
 
-    def init_random_job(self, job_num):
+    def init_random_job(self, job_batch_num):
         current_time = 1
         current_times = np.full(self.job_type_num, current_time)
-        for i in range(0, job_num):
+        for i in range(0, job_batch_num):
             for j in range(0, self.job_type_num):
                 self.add_job(j, current_times[j])
                 current_times[j] += 1
 
         self.release = False
 
-    def process(self, current_time, work_centre_id, machine_id, task_id):
+    def process(self, current_time, task_type, machine_id, task_id):
         task = self.tasks.loc[task_id]
-        task_type = task['task_type']
         processing_time = task['processing_time']
         completed_time = current_time + processing_time
         # Update the machine
-        machine = self.machines.loc[machine_id]
-        machine['next_idle_time'] = completed_time
-        self.machines.loc[machine_id] = machine
+        self.machines.at[machine_id, 'next_idle_time'] = completed_time
         # Update the task
-        task['start_time'] = current_time
-        task['completed_time'] = completed_time
-        task['status'] = 1
-        self.tasks.loc[task_id] = task
+        self.tasks.at[task_id, 'start_time'] = current_time
+        self.tasks.at[task_id, 'completed_time'] = completed_time
+        self.tasks.at[task_id, 'status'] = 1
         # Update the job
         job_id = task['job_id']
         job = self.jobs.loc[job_id]
@@ -147,26 +143,24 @@ class WorkShop:
             job['status'] = 2
         # Update the current task of the job
         next_task_type = self.next_task_mat[job_type][task_type]
-        job['current_task_type'] = next_task_type
-        # Update the completed time of the job
+        self.jobs.at[job_id, 'current_task_type'] = next_task_type
+        self.jobs.at[job_id, 'remaining_task_num'] -= 1
         # Check if the job is completed
         if next_task_type == -1:
-            job['completed_time'] = completed_time
-            job['status'] = 1
-            job['remaining_process_time'] = 0
-            job['remaining_task_num'] = 0
+            # Update the completed time of the job
+            self.jobs.at[job_id, 'completed_time'] = completed_time
+            self.jobs.at[job_id, 'status'] = 1
+            self.jobs.at[job_id, 'remaining_process_time'] = 0
         else:
-            job['remaining_process_time'] = self.remaining_processing_time_mat[job_type][next_task_type]
-            job['remaining_task_num'] -= 1
+            self.jobs.at[job_id, 'remaining_process_time'] = self.remaining_processing_time_mat[job_type][next_task_type]
             # Add the next task
             next_task_id = self.add_task(job_id, job_type, next_task_type, completed_time)
-        self.jobs.loc[job_id] = job
         # Update the operation
-        operator_id = len(self.operations)
-        self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
-                                            completed_time]
+        # operator_id = len(self.operations)
+        # self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
+        #                                     completed_time]
 
-        return job_id, task_type
+        return job_id
 
     def find_idle_machine(self, work_centre_id, current_time):
         machine_ids = self.machines[
@@ -206,14 +200,11 @@ class WorkShop:
         return machine_id
 
     def is_over(self):
-        count = len(self.jobs[self.jobs['status'] != 1])
-        if count > 0:
-            return False
-        else:
-            return True
+        pending_job_num = len(self.jobs[self.jobs['status'] != 1])
 
-    def print(self):
+        return pending_job_num == 0
 
+    def print_result(self):
         job_completed_time = self.jobs['completed_time'].max()
         task_completed_time = self.tasks['completed_time'].max()
         print('Job completed time: ' + str(job_completed_time))

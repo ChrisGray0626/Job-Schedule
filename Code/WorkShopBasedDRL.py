@@ -119,7 +119,7 @@ class WorkShopBasedDRL(WorkShopSolution):
         reward_sum = sum([i[1] for i in trajectory])
 
         if is_print:
-            self.print()
+            self.print_result()
 
         return reward_sum
 
