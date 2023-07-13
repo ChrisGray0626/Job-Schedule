@@ -44,25 +44,6 @@ pip install -r requirements.txt
 5. `start_time`
 6. `completed_time`
 
-## Event
-
-1. `current_time`
-2. `event_type`
-3. `work_centre_id`
-4. `machine_id`/`task_id`
-
-### Machine Event
-
-It means that the machine is idle.
-
-`event_type` = 1
-
-### Task Event
-
-It means that the new task is created.
-
-`event_type` = 0
-
 # Task Schedule Strategy
 
 - FIFO

@@ -4,7 +4,6 @@
   @Author Chris
   @Date 2023/6/23
 """
-from queue import PriorityQueue
 
 import numpy as np
 import pandas as pd
@@ -33,7 +32,6 @@ class WorkShop:
         self.task_processing_times = None
         self.tasks = None
         self.operations = None
-        self.events = PriorityQueue()
         self.release = True
         self.init()
 
@@ -83,7 +81,6 @@ class WorkShop:
         self.jobs = self.jobs.drop(self.jobs.index)
         self.tasks = self.tasks.drop(self.tasks.index)
         self.operations = self.operations.drop(self.operations.index)
-        self.events = PriorityQueue()
         self.release = True
 
     def add_job(self, job_type, current_time):
@@ -101,8 +98,6 @@ class WorkShop:
         self.jobs.loc[job_id] = job
         # Add the first task
         first_task_id = self.add_task(job_id, job_type, first_task_type, current_time)
-        # Add the task event
-        self.events.put([current_time, Constant.TASK_EVENT, first_task_type, first_task_id])
 
     def add_task(self, job_id, job_type, task_type, current_time):
         task_id = len(self.tasks)
@@ -135,12 +130,11 @@ class WorkShop:
         machine = self.machines.loc[machine_id]
         machine['next_idle_time'] = completed_time
         self.machines.loc[machine_id] = machine
-        # Add the machine event to find a task to process
-        self.events.put([completed_time, Constant.MACHINE_EVENT, work_centre_id, machine_id])
         # Update the task
         task['start_time'] = current_time
         task['completed_time'] = completed_time
         task['status'] = 1
+        self.tasks.loc[task_id] = task
         # Update the job
         job_id = task['job_id']
         job = self.jobs.loc[job_id]
@@ -165,9 +159,8 @@ class WorkShop:
             job['remaining_process_time'] = self.remaining_processing_time_mat[job_type][next_task_type]
             job['remaining_task_num'] -= 1
             # Add the next task
-            next_task_id = self.add_task(job_id, job_type, next_task_type, current_time)
-            # Add the task event to add the next task to the queue
-            self.events.put([completed_time, Constant.TASK_EVENT, next_task_type, next_task_id])
+            next_task_id = self.add_task(job_id, job_type, next_task_type, completed_time)
+        self.jobs.loc[job_id] = job
         # Update the operation
         operator_id = len(self.operations)
         self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
@@ -186,6 +179,21 @@ class WorkShop:
 
         return machines
 
+    def find_work_centre_task(self, task_type):
+        tasks = self.tasks[(self.tasks['task_type'] == task_type)]
+
+        return tasks
+
+    def find_pending_task(self, task_type, current_time):
+        tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time) & (self.tasks['start_time'] == -1)]
+
+        return tasks
+
+    def find_pending_job(self, task_type, current_time):
+        jobs = self.jobs[(self.jobs['current_task_type'] == task_type) & (self.jobs['release_time'] <= current_time) & (self.jobs['status'] != 1)]
+
+        return jobs
+
     def choose_machine(self, work_centre_id, current_time):
         machines = self.machines[
             (self.machines['work_centre_id'] == work_centre_id) & (self.machines['next_idle_time'] <= current_time)]
@@ -196,6 +204,13 @@ class WorkShop:
         machine_id = machines.index[np.argmin(machines['next_idle_time'])]
 
         return machine_id
+
+    def is_over(self):
+        count = len(self.jobs[self.jobs['status'] != 1])
+        if count > 0:
+            return False
+        else:
+            return True
 
     def print(self):
 

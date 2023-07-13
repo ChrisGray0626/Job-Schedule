@@ -16,10 +16,9 @@ class WorkShopSolution:
     def __init__(self, _work_shop, _task_schedule_strategy):
         self.work_shop = _work_shop
         self.task_schedule_strategy = _task_schedule_strategy
-        self.task_scheduler = ClassicalTaskScheduler(self.work_shop.task_type, self.task_schedule_strategy)
+        self.task_scheduler = ClassicalTaskScheduler()
 
     def init_random_job(self, job_num):
-        self.work_shop.reset()
         self.work_shop.init_random_job(job_num)
 
     def schedule(self, current_time, task_type, machine_id, is_print=False):
@@ -30,9 +29,9 @@ class WorkShopSolution:
 
         return [current_time, job_id, task_type]
 
-    def execute(self, is_print=False):
+    def _execute(self, is_print=False):
         self.work_shop.reset()
-        self.init_random_job(5)
+        self.init_random_job(300)
         trajectory = []
         while self.work_shop.release or not self.work_shop.events.empty():
             current_time, event_type, task_type, param = self.work_shop.events.get(block=True)
@@ -51,7 +50,7 @@ class WorkShopSolution:
                 else:
                     # Find a task in the queue
                     if not self.task_scheduler.is_empty(task_type):
-                        record = self.schedule(current_time, task_type, machine_id)
+                        record = self.schedule(current_time, task_type, machine_id, is_print)
                         trajectory.append(record)
             # Task event
             elif event_type == Constant.TASK_EVENT:
@@ -61,9 +60,31 @@ class WorkShopSolution:
                 job = self.work_shop.jobs.loc[job_id]
                 self.task_scheduler.add(task_type, (job, task))
                 # Check if there is the only one task in the queue
-                if self.task_scheduler.size(task_type) == 1:
-                    # Add the machine event to notify the idle machine
-                    self.work_shop.events.put([current_time, Constant.MACHINE_EVENT, task_type, -1])
+                # if len(self.work_shop.find_work_centre_current_task(task_type, current_time)) == 1:
+                # Add the machine event to notify the idle machine
+                self.work_shop.events.put([current_time, Constant.MACHINE_EVENT, task_type, -1])
+        return trajectory
+
+    def execute(self, is_print=False):
+        self.work_shop.reset()
+        self.init_random_job(50)
+        trajectory = []
+        current_time = 1
+        while self.work_shop.release or not self.work_shop.is_over():
+            for task_type in range(self.work_shop.task_type):
+                # Find the idle machines
+                machine_ids = self.work_shop.find_idle_machine(task_type, current_time)
+                for machine_id in machine_ids:
+                    tasks = self.work_shop.find_pending_task(task_type, current_time)
+                    if len(tasks) == 0:
+                        continue
+                    jobs = self.work_shop.find_pending_job(task_type, current_time)
+                    task_id = self.task_scheduler.execute(self.task_schedule_strategy, tasks, jobs)
+                    job_id, task_type = self.work_shop.process(current_time, task_type, machine_id, task_id)
+                    if is_print:
+                        trajectory.append([current_time, job_id, task_type])
+                        print(current_time, job_id, task_type)
+            current_time += 1
         return trajectory
 
     def print(self):
@@ -77,6 +98,6 @@ if __name__ == '__main__':
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopSolution(work_shop, task_schedule_strategy)
 
-    trajectory = solution.execute(True)
+    trajectory = solution.execute(is_print=False)
     solution.print()
     pass
