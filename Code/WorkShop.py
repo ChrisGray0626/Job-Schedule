@@ -23,7 +23,6 @@ class WorkShop:
         self.parallel_machine_num = parallel_machine_num
         self.machines = None
         self.job_type_num = None
-        self.job_task_num = None
         self.job_tasks = None
         self.job_first_task = None
         self.jobs = None
@@ -43,20 +42,20 @@ class WorkShop:
         self.init_operation()
 
     def init_definition(self):
-        self.job_type_num, self.job_task_num, self.job_tasks, self.task_processing_times = Util.parse_definition(
+        self.job_type_num, self.task_type, self.job_tasks, self.task_processing_times = Util.parse_definition(
             self.instance_specification, self.instance_path)
         self.job_first_task = self.job_tasks[:, 0]
-        self.next_task_mat = Util.generate_next_task_mat(self.job_type_num, self.job_task_num, self.job_tasks)
+        self.next_task_mat = Util.generate_next_task_mat(self.job_type_num, self.task_type, self.job_tasks)
 
         self.remaining_processing_time_mat = Util.generate_remaining_processing_time_mat(self.job_type_num,
-                                                                                         self.job_task_num,
+                                                                                         self.task_type,
                                                                                          self.job_first_task,
                                                                                          self.next_task_mat,
                                                                                          self.task_processing_times)
 
     def init_machine(self):
         self.machines = pd.DataFrame(columns=['machine_id', 'work_centre_id', 'next_idle_time']).astype(int)
-        self.task_type = self.job_task_num
+
         for i in range(0, self.task_type):
             for j in range(0, self.parallel_machine_num):
                 machine_id = len(self.machines)
@@ -91,7 +90,7 @@ class WorkShop:
         first_task_type = self.job_first_task[job_type]
         status = 0
         remaining_process_time = self.remaining_processing_time_mat[job_type][first_task_type]
-        remaining_task_num = self.job_task_num
+        remaining_task_num = self.task_type
         # Add the job
         job = [job_id, job_type, release_time, start_time, completed_time, first_task_type, status,
                remaining_process_time, remaining_task_num]

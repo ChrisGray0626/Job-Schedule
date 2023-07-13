@@ -21,6 +21,15 @@ class WorkShopSolution:
     def init_random_job(self, job_num):
         self.work_shop.init_random_job(job_num)
 
+    def schedule(self, current_time, task_type, tasks, jobs, machine_id, print_flag=False):
+        task_id = self.task_scheduler.execute(self.task_schedule_strategy, tasks, jobs)
+        job_id = self.work_shop.process(current_time, task_type, machine_id, task_id)
+
+        if print_flag:
+            print(current_time, job_id, task_type)
+
+        return current_time, job_id, task_type
+
     def execute(self, print_flag=False):
         self.work_shop.reset()
         self.init_random_job(50)
@@ -35,11 +44,9 @@ class WorkShopSolution:
                     if len(tasks) == 0:
                         continue
                     jobs = self.work_shop.find_pending_job(task_type, current_time)
-                    task_id = self.task_scheduler.execute(self.task_schedule_strategy, tasks, jobs)
-                    job_id = self.work_shop.process(current_time, task_type, machine_id, task_id)
-                    if print_flag:
-                        trajectory.append([current_time, job_id, task_type])
-                        print(current_time, job_id, task_type)
+                    info = self.schedule(current_time, task_type, tasks, jobs, machine_id, print_flag)
+                    # Add the trajectory
+                    trajectory.append(info)
             current_time += 1
         return trajectory
 
@@ -54,7 +61,7 @@ if __name__ == '__main__':
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopSolution(work_shop, task_schedule_strategy)
     start_time = time.time()
-    trajectory = solution.execute(print_flag=False)
+    solution.execute(print_flag=False)
     end_time = time.time()
     execution_time = end_time - start_time
     print("Execution time: ", execution_time)
