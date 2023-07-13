@@ -48,6 +48,149 @@ class ClassicalTaskScheduler:
         return task_id
 
 
+class DRLTaskScheduler:
+
+    def __init__(self):
+        self.tasks = None
+        self.jobs = None
+
+    def execute(self, choose_strategy, current_time, tasks, jobs):
+        self.tasks = tasks
+        self.jobs = jobs
+        # Calculate the state
+        state = self.calc_state(current_time)
+        strategy = choose_strategy(state)
+        task_id = ClassicalTaskScheduler.execute(strategy, tasks, jobs)
+        # Calculate the next state
+        completed_time = self.simulate(current_time, task_id)
+        next_state = self.calc_state(completed_time)
+        # Calculate the reward
+        reward = self.calc_reward()
+        # Calculate the is_over
+        pending_tasks = self.tasks[self.tasks['status'] == 0]
+        is_over = len(pending_tasks) == 0
+
+        return task_id, state, reward, strategy, next_state, is_over
+
+    def simulate(self, current_time, task_id):
+        task = self.tasks.loc[task_id]
+        processing_time = task['processing_time']
+        completed_time = current_time + processing_time
+        # Update the task
+        self.tasks.at[task_id, 'start_time'] = current_time
+        self.tasks.at[task_id, 'completed_time'] = completed_time
+        self.tasks.at[task_id, 'status'] = 1
+        # Update the job
+        job_id = task['job_id']
+        job = self.jobs.loc[job_id]
+        self.jobs.at[job_id, 'remaining_process_time'] -= processing_time
+        self.jobs.at[job_id, 'remaining_task_num'] -= 1
+        if self.jobs.at[job_id, 'remaining_task_num'] == 0:
+            self.jobs.at[job_id, 'completed_time'] = completed_time
+            self.jobs.at[job_id, 'status'] = 1
+        return completed_time
+
+    def calc_state(self, current_time):
+        return 1
+
+    def calc_reward(self):
+        return 1
+
+
+class DynamicTaskQueue:
+
+    def __init__(self):
+        self.queue = pd.DataFrame(
+            columns=[
+                'task_id', 'job_id', 'task_type', 'processing_time', 'release_time', 'start_time', 'completed_time',
+                'status',
+                'job_release_time', 'job_start_time', 'job_completed_time', 'remaining_process_time',
+                'remaining_task_num'
+            ]).astype(int)
+
+    def add(self, item):
+        job = item[0]
+        job = job[1:]
+        job = job.rename(index={'release_time': 'job_release_time', 'start_time': 'job_start_time',
+                                'completed_time': 'job_completed_time', 'status': 'job_status'})
+        task = item[1]
+        task = pd.concat([task, job])
+        self.queue.loc[task.loc['task_id']] = task
+
+    def execute(self, current_time, choose_strategy):
+        state = self.calc_state(current_time)
+        strategy = choose_strategy(state)
+        task = self.poll(strategy)
+        task_id = task[0]
+        process_time = task[3]
+        completed_time = current_time + process_time
+        next_state = self.calc_state(completed_time)
+        reward = self.calc_reward(next_state)
+        is_over = self.is_empty()
+
+        return task_id, state, reward, strategy, next_state, is_over
+
+    def calc_state(self, current_time):
+        task_num = self.size()
+        if task_num == 0:
+            return [0, 0, 0]
+
+        mean_waiting_time = current_time - self.queue['release_time'].mean()
+        max_waiting_time = current_time - self.queue['release_time'].max()
+        mean_remaining_process_time = self.queue['remaining_process_time'].mean()
+        mean_remaining_task_num = self.queue['remaining_task_num'].mean()
+
+        state = [task_num, mean_waiting_time, max_waiting_time]
+
+        return state
+
+    @staticmethod
+    def calc_reward(state):
+        task_num = state[0]
+        mean_waiting_time = state[1]
+        max_waiting_time = state[2]
+
+        reward = - (mean_waiting_time + max_waiting_time)
+
+        return reward
+
+    def poll(self, strategy):
+        strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[strategy]
+        # Sort by job_id when comparison is consistent
+        self.queue = self.queue.sort_values('job_id')
+        if strategy == 'FIFO':
+            task_id = self.queue['release_time'].idxmin()
+        elif strategy == 'FILO':
+            task_id = self.queue['release_time'].idxmax()
+        elif strategy == 'SPT':
+            task_id = self.queue['processing_time'].idxmin()
+        elif strategy == 'LPT':
+            task_id = self.queue['processing_time'].idxmax()
+        elif strategy == 'SRTPT':
+            task_id = self.queue['remaining_process_time'].idxmin()
+        elif strategy == 'LRTPT':
+            task_id = self.queue['remaining_process_time'].idxmax()
+        elif strategy == 'LOR':
+            task_id = self.queue['remaining_task_num'].idxmin()
+        elif strategy == 'MOR':
+            task_id = self.queue['remaining_task_num'].idxmax()
+        elif strategy == 'ERD':
+            task_id = self.queue['job_release_time'].idxmin()
+        else:
+            raise Exception("Unknown Strategy")
+
+        task = self.queue.loc[task_id]
+        self.queue.drop(task_id, inplace=True)
+
+        return task
+
+    def is_empty(self):
+        return self.queue.empty
+
+    def size(self):
+        return self.queue.shape[0]
+
+
 class ClassicalTaskScheduler1:
 
     def __init__(self, work_centre_num, strategy):
@@ -199,97 +342,3 @@ class DynamicTaskScheduler:
 
     def size(self, task_type):
         return self.task_queues[task_type].size()
-
-
-class DynamicTaskQueue:
-
-    def __init__(self):
-        self.queue = pd.DataFrame(
-            columns=[
-                'task_id', 'job_id', 'task_type', 'processing_time', 'release_time', 'start_time', 'completed_time',
-                'status',
-                'job_release_time', 'job_start_time', 'job_completed_time', 'remaining_process_time',
-                'remaining_task_num'
-            ]).astype(int)
-
-    def add(self, item):
-        job = item[0]
-        job = job[1:]
-        job = job.rename(index={'release_time': 'job_release_time', 'start_time': 'job_start_time',
-                                'completed_time': 'job_completed_time', 'status': 'job_status'})
-        task = item[1]
-        task = pd.concat([task, job])
-        self.queue.loc[task.loc['task_id']] = task
-
-    def execute(self, current_time, choose_strategy):
-        state = self.calc_state(current_time)
-        strategy = choose_strategy(state)
-        task = self.poll(strategy)
-        task_id = task[0]
-        process_time = task[3]
-        completed_time = current_time + process_time
-        next_state = self.calc_state(completed_time)
-        reward = self.calc_reward(next_state)
-        is_over = self.is_empty()
-
-        return task_id, state, reward, strategy, next_state, is_over
-
-    def calc_state(self, current_time):
-        task_num = self.size()
-        if task_num == 0:
-            return [0, 0, 0]
-
-        mean_waiting_time = current_time - self.queue['release_time'].mean()
-        max_waiting_time = current_time - self.queue['release_time'].max()
-        mean_remaining_process_time = self.queue['remaining_process_time'].mean()
-        mean_remaining_task_num = self.queue['remaining_task_num'].mean()
-
-        state = [task_num, mean_waiting_time, max_waiting_time]
-
-        return state
-
-    @staticmethod
-    def calc_reward(state):
-        task_num = state[0]
-        mean_waiting_time = state[1]
-        max_waiting_time = state[2]
-
-        reward = - (mean_waiting_time + max_waiting_time)
-
-        return reward
-
-    def poll(self, strategy):
-        strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[strategy]
-        # Sort by job_id when comparison is consistent
-        self.queue = self.queue.sort_values('job_id')
-        if strategy == 'FIFO':
-            task_id = self.queue['release_time'].idxmin()
-        elif strategy == 'FILO':
-            task_id = self.queue['release_time'].idxmax()
-        elif strategy == 'SPT':
-            task_id = self.queue['processing_time'].idxmin()
-        elif strategy == 'LPT':
-            task_id = self.queue['processing_time'].idxmax()
-        elif strategy == 'SRTPT':
-            task_id = self.queue['remaining_process_time'].idxmin()
-        elif strategy == 'LRTPT':
-            task_id = self.queue['remaining_process_time'].idxmax()
-        elif strategy == 'LOR':
-            task_id = self.queue['remaining_task_num'].idxmin()
-        elif strategy == 'MOR':
-            task_id = self.queue['remaining_task_num'].idxmax()
-        elif strategy == 'ERD':
-            task_id = self.queue['job_release_time'].idxmin()
-        else:
-            raise Exception("Unknown Strategy")
-
-        task = self.queue.loc[task_id]
-        self.queue.drop(task_id, inplace=True)
-
-        return task
-
-    def is_empty(self):
-        return self.queue.empty
-
-    def size(self):
-        return self.queue.shape[0]

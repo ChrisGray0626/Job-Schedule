@@ -11,7 +11,7 @@ import torch
 
 import Constant
 from Code.WorkShop import WorkShop
-from TaskScheduler import DynamicTaskScheduler
+from TaskScheduler import DynamicTaskScheduler, ClassicalTaskScheduler
 from WorkShopSolution import WorkShopSolution
 
 
@@ -19,7 +19,7 @@ class WorkShopBasedDRL(WorkShopSolution):
 
     def __init__(self, _work_shop):
         super().__init__(_work_shop, Constant.DYNAMICAL_SCHEDULING_STRATEGY)
-        self.task_scheduler = DynamicTaskScheduler(self.work_shop.task_type)
+        self.task_scheduler = ClassicalTaskScheduler()
         self.input_size = 3
         self.output_size = len(Constant.CLASSICAL_SCHEDULING_STRATEGIES)
         self.policy_model = torch.nn.Sequential(
@@ -44,16 +44,36 @@ class WorkShopBasedDRL(WorkShopSolution):
         # 根据概率选择一个动作
         action = random.choices(range(self.output_size), weights=prob[0].tolist(), k=1)[0]
 
-        return action
+        return 0
 
-    def schedule(self, current_time, task_type, machine_id, is_print=False):
-        task_id, state, reward, strategy, next_state, is_over = self.task_scheduler.execute(current_time, task_type,
-                                                                                            self.choose_action)
-        job_id, task_type = self.work_shop.process(current_time, task_type, machine_id, task_id)
-        if is_print:
+    @staticmethod
+    def calc_state(current_time, tasks, jobs):
+        return np.array([current_time, len(tasks), len(jobs)])
+
+    @staticmethod
+    def calc_reward():
+        return 1
+
+    def schedule(self, current_time, task_type, tasks, jobs, machine_id, print_flag=False):
+        # Calculate the state
+        state = self.calc_state(current_time, tasks, jobs)
+        action = self.choose_action(state)
+        strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[action]
+        task_id = self.task_scheduler.execute(strategy, tasks, jobs)
+        job_id = self.work_shop.process(current_time, task_type, machine_id, task_id)
+        # Calculate the next state
+        next_tasks = self.work_shop.find_pending_task(task_type, current_time)
+        next_jobs = self.work_shop.find_pending_job(task_type, current_time)
+        next_state = self.calc_state(current_time, next_tasks, next_jobs)
+        # Calculate the reward
+        reward = self.calc_reward()
+        # Calculate the is_over
+        is_over = (next_tasks['status'] == 0).sum() == 0
+
+        if print_flag:
             print(current_time, job_id, task_type)
 
-        return [state, reward, strategy, next_state, is_over]
+        return state, reward, action, next_state, is_over
 
     def train(self, epoch_num):
         optimizer = torch.optim.Adam(self.policy_model.parameters(), lr=1e-3)
@@ -162,7 +182,7 @@ if __name__ == '__main__':
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopBasedDRL(work_shop)
 
-    solution.train(500)
+    solution.train(1)
     solution.test(True)
 
     pass

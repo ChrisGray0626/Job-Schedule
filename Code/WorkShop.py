@@ -143,7 +143,6 @@ class WorkShop:
         # Update the current task of the job
         next_task_type = self.next_task_mat[job_type][task_type]
         self.jobs.at[job_id, 'current_task_type'] = next_task_type
-        self.jobs.at[job_id, 'remaining_task_num'] -= 1
         # Check if the job is completed
         if next_task_type == -1:
             # Update the completed time of the job
@@ -154,6 +153,7 @@ class WorkShop:
             self.jobs.at[job_id, 'remaining_process_time'] = self.remaining_processing_time_mat[job_type][next_task_type]
             # Add the next task
             next_task_id = self.add_task(job_id, job_type, next_task_type, completed_time)
+        self.jobs.at[job_id, 'remaining_task_num'] -= 1
         # Update the operation
         # operator_id = len(self.operations)
         # self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
