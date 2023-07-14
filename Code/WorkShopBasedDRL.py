@@ -11,7 +11,7 @@ import torch
 
 import Constant
 from Code.WorkShop import WorkShop
-from TaskScheduler import DynamicTaskScheduler, ClassicalTaskScheduler
+from TaskScheduler import ClassicalTaskScheduler
 from WorkShopSolution import WorkShopSolution
 
 
@@ -22,6 +22,7 @@ class WorkShopBasedDRL(WorkShopSolution):
         self.task_scheduler = ClassicalTaskScheduler()
         self.input_size = 3
         self.output_size = len(Constant.CLASSICAL_SCHEDULING_STRATEGIES)
+        self.device = torch.device("cuda")
         self.policy_model = torch.nn.Sequential(
             torch.nn.Linear(self.input_size, 128),
             torch.nn.ReLU(),
@@ -34,12 +35,19 @@ class WorkShopBasedDRL(WorkShopSolution):
             torch.nn.ReLU(),
             torch.nn.Linear(128, 1),
         )
+        random_input = torch.randn(2, self.input_size)
 
-        self.value_model.forward(torch.randn(2, self.input_size))
-        self.policy_model.forward(torch.randn(2, self.input_size))
+        self.policy_model.to(self.device)
+        self.value_model.to(self.device)
+        random_input = random_input.to(self.device)
+
+        self.value_model.forward(random_input)
+        self.policy_model.forward(random_input)
 
     def choose_action(self, state):
         state = torch.FloatTensor(state).reshape(1, self.input_size)
+        state = state.to(self.device)
+
         prob = self.policy_model.forward(state)
         # 根据概率选择一个动作
         action = random.choices(range(self.output_size), weights=prob[0].tolist(), k=1)[0]
@@ -104,6 +112,7 @@ class WorkShopBasedDRL(WorkShopSolution):
             deltas = (targets - values).squeeze(dim=1).tolist()
             advantages = self.calc_advantage(deltas)
             advantages = torch.FloatTensor(advantages).reshape(-1, 1)
+            advantages = advantages.to(self.device)
             # 取出每一步动作的概率
             # [b, 2] -> [b, 2] -> [b, 1]
             old_probs = self.policy_model.forward(states)
@@ -168,6 +177,12 @@ class WorkShopBasedDRL(WorkShopSolution):
         is_overs = np.array([i[4] for i in trajectory])
         is_overs = torch.LongTensor(is_overs).reshape(-1, 1)
 
+        states = states.to(self.device)
+        rewards = rewards.to(self.device)
+        actions = actions.to(self.device)
+        next_states = next_states.to(self.device)
+        is_overs = is_overs.to(self.device)
+
         return states, rewards, actions, next_states, is_overs
 
     @staticmethod
@@ -194,13 +209,12 @@ class WorkShopBasedDRL(WorkShopSolution):
 
 
 if __name__ == '__main__':
-    # TODO Check the GPU
     instance_specification = "Taillard"
-    instance_path = "../Data/Sample-Taillard.txt"
+    instance_path = "../Data/la01-Taillard.txt"
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopBasedDRL(work_shop)
 
-    solution.train(100)
+    solution.train(1)
     solution.test(print_flag=True)
 
     pass

@@ -60,7 +60,7 @@ class WorkShopSolution:
 
 if __name__ == '__main__':
     instance_specification = "Taillard"
-    instance_path = "../Data/Sample-Taillard.txt"
+    instance_path = "../Data/la01-Taillard.txt"
     task_schedule_strategy = Constant.SCHEDULING_STRATEGIES[0]
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopSolution(work_shop, task_schedule_strategy)
