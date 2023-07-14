@@ -7,19 +7,16 @@
 import time
 
 import Constant
-from Code import Util
 from TaskScheduler import ClassicalTaskScheduler
 from WorkShop import WorkShop
 
 
 class WorkShopSolution:
-    def __init__(self, _work_shop, _task_schedule_strategy):
+    def __init__(self, _work_shop, _task_schedule_strategy, _job_batch_num=50):
         self.work_shop = _work_shop
         self.task_schedule_strategy = _task_schedule_strategy
+        self.job_batch_num = _job_batch_num
         self.task_scheduler = ClassicalTaskScheduler()
-
-    def init_random_job(self, job_num):
-        self.work_shop.init_random_job(job_num)
 
     def schedule(self, current_time, task_type, tasks, jobs, machine_id, print_flag=False):
         task_id = self.task_scheduler.execute(self.task_schedule_strategy, tasks, jobs)
@@ -32,7 +29,8 @@ class WorkShopSolution:
 
     def execute(self, print_flag=False):
         self.work_shop.reset()
-        self.init_random_job(50)
+        self.work_shop.init_random_job(self.job_batch_num)
+
         trajectory = []
         current_time = 1
         while self.work_shop.release or not self.work_shop.is_over():
@@ -67,7 +65,7 @@ if __name__ == '__main__':
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopSolution(work_shop, task_schedule_strategy)
     start_time = time.time()
-    solution.execute(print_flag=False)
+    solution.execute(print_flag=True)
     end_time = time.time()
     execution_time = end_time - start_time
     print("Execution time: ", execution_time)

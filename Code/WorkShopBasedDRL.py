@@ -61,6 +61,7 @@ class WorkShopBasedDRL(WorkShopSolution):
 
         return reward
 
+    # TODO Split the trajectory
     def schedule(self, current_time, task_type, tasks, jobs, machine_id, print_flag=False):
         # Calculate the state
         state = self.calc_state(current_time, tasks, jobs)
@@ -182,8 +183,18 @@ class WorkShopBasedDRL(WorkShopSolution):
 
         return advantages
 
+    @staticmethod
+    def merge_task(tasks, jobs):
+        tasks = tasks.sort_values('job_id')
+        jobs = jobs.rename(columns={'release_time': 'job_release_time', 'start_time': 'job_start_time',
+                                    'completed_time': 'job_completed_time', 'status': 'job_status'})
+        tasks = tasks.merge(jobs, on='job_id', how='left')
+
+        return tasks
+
 
 if __name__ == '__main__':
+    # TODO Check the GPU
     instance_specification = "Taillard"
     instance_path = "../Data/Sample-Taillard.txt"
     work_shop = WorkShop(instance_specification, instance_path, 3)

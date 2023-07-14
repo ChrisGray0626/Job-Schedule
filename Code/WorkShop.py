@@ -7,7 +7,7 @@
 
 import numpy as np
 import pandas as pd
-
+import random
 import Util
 from Code import Constant
 
@@ -113,10 +113,11 @@ class WorkShop:
     def init_random_job(self, job_batch_num):
         current_time = 1
         current_times = np.full(self.job_type_num, current_time)
+        random.seed(6)
         for i in range(0, job_batch_num):
             for j in range(0, self.job_type_num):
                 self.add_job(j, current_times[j])
-                current_times[j] += 1
+                current_times[j] += random.randint(1, 100)
 
         self.release = False
 
@@ -167,16 +168,6 @@ class WorkShop:
 
         return machine_ids
 
-    def find_work_centre_machine(self, work_centre_id):
-        machines = self.machines[(self.machines['work_centre_id'] == work_centre_id)]
-
-        return machines
-
-    def find_work_centre_task(self, task_type):
-        tasks = self.tasks[(self.tasks['task_type'] == task_type)]
-
-        return tasks
-
     def find_pending_task(self, task_type, current_time):
         tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time) & (self.tasks['start_time'] == -1)]
 
@@ -186,17 +177,6 @@ class WorkShop:
         jobs = self.jobs[(self.jobs['current_task_type'] == task_type) & (self.jobs['release_time'] <= current_time) & (self.jobs['status'] != 1)]
 
         return jobs
-
-    def choose_machine(self, work_centre_id, current_time):
-        machines = self.machines[
-            (self.machines['work_centre_id'] == work_centre_id) & (self.machines['next_idle_time'] <= current_time)]
-        num = len(machines)
-        if num < 1:
-            return -1
-        # Choose a machine with the minimum next idle time
-        machine_id = machines.index[np.argmin(machines['next_idle_time'])]
-
-        return machine_id
 
     def is_over(self):
         pending_job_num = len(self.jobs[self.jobs['status'] != 1])
