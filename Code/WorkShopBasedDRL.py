@@ -24,7 +24,6 @@ class WorkShopBasedDRL(WorkShopSolution):
         self.input_size = 3
         self.output_size = len(Constant.CLASSICAL_SCHEDULING_STRATEGIES)
         self.device = torch.device("cuda")
-        # TODO Split the model ?
         self.policy_model = torch.nn.Sequential(
             torch.nn.Linear(self.input_size, 128),
             torch.nn.ReLU(),
@@ -86,7 +85,7 @@ class WorkShopBasedDRL(WorkShopSolution):
         # Calculate the reward
         reward = self.calc_reward(completed_time, next_tasks, next_jobs)
         # Calculate the is_over
-        is_over = len(next_tasks) == 0
+        is_over = len(next_tasks) == 1
 
         if print_flag:
             print(current_time, job_id, task_type, strategy)
@@ -123,7 +122,7 @@ class WorkShopBasedDRL(WorkShopSolution):
                 old_probs = old_probs.gather(dim=1, index=actions)
                 old_probs = old_probs.detach()
                 # 每批数据反复训练10次
-                for _ in range(10):
+                for _ in range(1):
                     # 重新计算每一步动作的概率
                     # [b, 4] -> [b, 2]
                     new_probs = self.policy_model.forward(states)
