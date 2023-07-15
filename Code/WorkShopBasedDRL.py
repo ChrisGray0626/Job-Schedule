@@ -24,6 +24,7 @@ class WorkShopBasedDRL(WorkShopSolution):
         self.input_size = 3
         self.output_size = len(Constant.CLASSICAL_SCHEDULING_STRATEGIES)
         self.device = torch.device("cuda")
+        # TODO Split the model ?
         self.policy_model = torch.nn.Sequential(
             torch.nn.Linear(self.input_size, 128),
             torch.nn.ReLU(),
@@ -99,54 +100,56 @@ class WorkShopBasedDRL(WorkShopSolution):
         for epoch in range(epoch_num):
             # 玩一局游戏,得到数据
             trajectory = self.execute()
-            states, rewards, actions, next_states, is_overs = self.parse_trajectory(trajectory)
+            for task_type in range(self.work_shop.task_type_num):
+                work_centre_trajectory = trajectory[task_type]
+                states, rewards, actions, next_states, is_overs = self.parse_trajectory(work_centre_trajectory)
 
-            values = self.value_model.forward(states)
-            # [b, 4] -> [b, 1]
-            targets = self.value_model.forward(next_states).detach()
-            targets = targets * 0.98
-            targets *= (1 - is_overs)
-            targets += rewards
-            # 计算优势,这里的advantages有点像是策略梯度里的reward_sum
-            # 只是这里计算的不是reward,而是target和value的差
-            # [b, 1]
-            deltas = (targets - values).squeeze(dim=1).tolist()
-            advantages = self.calc_advantage(deltas)
-            advantages = torch.FloatTensor(advantages).reshape(-1, 1)
-            advantages = advantages.to(self.device)
-            # 取出每一步动作的概率
-            # [b, 2] -> [b, 2] -> [b, 1]
-            old_probs = self.policy_model.forward(states)
-            old_probs = old_probs.gather(dim=1, index=actions)
-            old_probs = old_probs.detach()
-            # 每批数据反复训练10次
-            for _ in range(10):
-                # 重新计算每一步动作的概率
-                # [b, 4] -> [b, 2]
-                new_probs = self.policy_model.forward(states)
-                # [b, 2] -> [b, 1]
-                new_probs = new_probs.gather(dim=1, index=actions)
-                new_probs = new_probs
-                # 求出概率的变化
-                # [b, 1] - [b, 1] -> [b, 1]
-                ratios = new_probs / old_probs
-                # 计算截断的和不截断的两份loss,取其中小的
-                # [b, 1] * [b, 1] -> [b, 1]
-                surr1 = ratios * advantages
-                # [b, 1] * [b, 1] -> [b, 1]
-                surr2 = torch.clamp(ratios, 0.8, 1.2) * advantages
-                loss = -torch.min(surr1, surr2)
-                loss = loss.mean()
-                # 重新计算value,并计算时序差分loss
                 values = self.value_model.forward(states)
-                loss_td = loss_fn(values, targets)
-                # 更新参数
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                optimizer_td.zero_grad()
-                loss_td.backward()
-                optimizer_td.step()
+                # [b, 4] -> [b, 1]
+                targets = self.value_model.forward(next_states).detach()
+                targets = targets * 0.98
+                targets *= (1 - is_overs)
+                targets += rewards
+                # 计算优势,这里的advantages有点像是策略梯度里的reward_sum
+                # 只是这里计算的不是reward,而是target和value的差
+                # [b, 1]
+                deltas = (targets - values).squeeze(dim=1).tolist()
+                advantages = self.calc_advantage(deltas)
+                advantages = torch.FloatTensor(advantages).reshape(-1, 1)
+                advantages = advantages.to(self.device)
+                # 取出每一步动作的概率
+                # [b, 2] -> [b, 2] -> [b, 1]
+                old_probs = self.policy_model.forward(states)
+                old_probs = old_probs.gather(dim=1, index=actions)
+                old_probs = old_probs.detach()
+                # 每批数据反复训练10次
+                for _ in range(10):
+                    # 重新计算每一步动作的概率
+                    # [b, 4] -> [b, 2]
+                    new_probs = self.policy_model.forward(states)
+                    # [b, 2] -> [b, 1]
+                    new_probs = new_probs.gather(dim=1, index=actions)
+                    new_probs = new_probs
+                    # 求出概率的变化
+                    # [b, 1] - [b, 1] -> [b, 1]
+                    ratios = new_probs / old_probs
+                    # 计算截断的和不截断的两份loss,取其中小的
+                    # [b, 1] * [b, 1] -> [b, 1]
+                    surr1 = ratios * advantages
+                    # [b, 1] * [b, 1] -> [b, 1]
+                    surr2 = torch.clamp(ratios, 0.8, 1.2) * advantages
+                    loss = -torch.min(surr1, surr2)
+                    loss = loss.mean()
+                    # 重新计算value,并计算时序差分loss
+                    values = self.value_model.forward(states)
+                    loss_td = loss_fn(values, targets)
+                    # 更新参数
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+                    optimizer_td.zero_grad()
+                    loss_td.backward()
+                    optimizer_td.step()
 
             if (epoch + 1) % (epoch_num / 10) == 0:
                 reward_sum = self.test()
@@ -157,7 +160,10 @@ class WorkShopBasedDRL(WorkShopSolution):
 
     def test(self, print_flag=False):
         trajectory = self.execute(print_flag)
-        reward_sum = sum([i[1] for i in trajectory])
+        reward_sum = 0
+        for task_type in range(self.work_shop.task_type_num):
+            work_centre_trajectory = trajectory[task_type]
+            reward_sum += sum([i[1] for i in work_centre_trajectory])
 
         if print_flag:
             self.print_result()
@@ -230,8 +236,8 @@ if __name__ == '__main__':
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopBasedDRL(work_shop)
 
-    # solution.train(1)
-    # solution.test(print_flag=True)
+    solution.train(10)
+    solution.test(print_flag=True)
 
-    solution.run(print_flag=True)
+    # solution.run(print_flag=True)
     pass

@@ -31,12 +31,12 @@ class WorkShopSolution:
         self.work_shop.reset()
         self.work_shop.init_random_job(self.job_batch_num)
 
-        trajectory = []
+        trajectory = [[] for _ in range(self.work_shop.task_type_num)]
         current_time = 1
         while self.work_shop.release or not self.work_shop.is_over():
-            for task_type in range(self.work_shop.task_type):
+            for task_type in range(self.work_shop.task_type_num):
                 info = self.work_centre_execute(current_time, task_type, print_flag)
-                trajectory += info
+                trajectory[task_type] += info
             current_time += 1
 
         return trajectory
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopSolution(work_shop, task_schedule_strategy)
     start_time = time.time()
-    solution.execute(print_flag=True)
+    trajectory = solution.execute(print_flag=True)
     end_time = time.time()
     execution_time = end_time - start_time
     print("Execution time: ", execution_time)
