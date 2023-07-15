@@ -5,6 +5,7 @@
   @Date 2023/7/9
 """
 import random
+import time
 
 import numpy as np
 import torch
@@ -23,7 +24,6 @@ class WorkShopBasedDRL(WorkShopSolution):
         self.input_size = 3
         self.output_size = len(Constant.CLASSICAL_SCHEDULING_STRATEGIES)
         self.device = torch.device("cuda")
-        # TODO Save & Load model
         self.policy_model = torch.nn.Sequential(
             torch.nn.Linear(self.input_size, 128),
             torch.nn.ReLU(),
@@ -151,6 +151,9 @@ class WorkShopBasedDRL(WorkShopSolution):
             if (epoch + 1) % (epoch_num / 10) == 0:
                 reward_sum = self.test()
                 print(epoch + 1, reward_sum)
+        # Save the model
+        torch.save(self.policy_model.state_dict(), Constant.POLICY_MODEL_PATH)
+        torch.save(self.value_model.state_dict(), Constant.VALUE_MODEL_PATH)
 
     def test(self, print_flag=False):
         trajectory = self.execute(print_flag)
@@ -160,6 +163,18 @@ class WorkShopBasedDRL(WorkShopSolution):
             self.print_result()
 
         return reward_sum
+
+    def run(self, print_flag=False):
+        self.policy_model.load_state_dict(torch.load(Constant.POLICY_MODEL_PATH))
+        self.value_model.load_state_dict(torch.load(Constant.VALUE_MODEL_PATH))
+
+        start_time = time.time()
+        self.execute(print_flag)
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print("Execution time: ", execution_time)
+
+        self.print_result()
 
     def parse_trajectory(self, trajectory):
         # [b, 3]
@@ -215,7 +230,8 @@ if __name__ == '__main__':
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopBasedDRL(work_shop)
 
-    solution.train(10)
-    solution.test(print_flag=True)
+    # solution.train(1)
+    # solution.test(print_flag=True)
 
+    solution.run(print_flag=True)
     pass
