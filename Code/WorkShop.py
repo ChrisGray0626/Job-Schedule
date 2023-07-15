@@ -117,7 +117,7 @@ class WorkShop:
         for i in range(0, job_batch_num):
             for j in range(0, self.job_type_num):
                 self.add_job(j, current_times[j])
-                current_times[j] += random.randint(1, 5)
+                current_times[j] += random.randint(0, 5)
 
         self.release = False
 

@@ -23,6 +23,7 @@ class WorkShopBasedDRL(WorkShopSolution):
         self.input_size = 3
         self.output_size = len(Constant.CLASSICAL_SCHEDULING_STRATEGIES)
         self.device = torch.device("cuda")
+        # TODO Save & Load model
         self.policy_model = torch.nn.Sequential(
             torch.nn.Linear(self.input_size, 128),
             torch.nn.ReLU(),
@@ -214,7 +215,7 @@ if __name__ == '__main__':
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopBasedDRL(work_shop)
 
-    solution.train(1)
+    solution.train(10)
     solution.test(print_flag=True)
 
     pass
