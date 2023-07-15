@@ -21,7 +21,7 @@ class WorkShopBasedDRL(WorkShopSolution):
     def __init__(self, _work_shop):
         super().__init__(_work_shop, Constant.DYNAMICAL_SCHEDULING_STRATEGY)
         self.task_scheduler = ClassicalTaskScheduler()
-        self.input_size = 3
+        self.input_size = 5
         self.output_size = len(Constant.CLASSICAL_SCHEDULING_STRATEGIES)
         self.device = torch.device("cuda")
         self.policy_model = torch.nn.Sequential(
@@ -60,17 +60,26 @@ class WorkShopBasedDRL(WorkShopSolution):
         task_num = len(tasks)
         mean_waiting_time = current_time - tasks['release_time'].mean()
         mean_processing_time = tasks['processing_time'].mean()
+        mean_remaining_processing_time = tasks['remaining_processing_time'].mean()
+        mean_remaining_task_num = tasks['remaining_task_num'].mean()
 
-        return np.array([task_num, mean_waiting_time, mean_processing_time])
+        return np.array([task_num, mean_waiting_time, mean_processing_time, mean_remaining_processing_time,
+                         mean_remaining_task_num])
 
-    @staticmethod
-    def calc_reward(current_time, tasks):
+    def calc_reward(self, current_time, tasks):
+        # Calculate the mean of waiting time
         mean_waiting_time = current_time - tasks['release_time'].mean()
-        reward = -mean_waiting_time
+        # Calculate the mean of remaining processing time ratio
+        mean_remaining_processing_time_ratio = tasks.apply(
+            lambda row: row['remaining_processing_time'] / self.work_shop.total_processing_times[row['job_type']],
+            axis=1).mean()
+        # Calculate the mean of remaining task num ratio
+        mean_remaining_task_num_ratio = tasks['remaining_task_num'].mean() / self.work_shop.task_type_num
+
+        reward = -mean_waiting_time * mean_remaining_processing_time_ratio * mean_remaining_task_num_ratio
 
         return reward
 
-    # TODO Split the trajectory
     def schedule(self, current_time, task_type, tasks, machine_id, print_flag=False):
         # Calculate the state
         state = self.calc_state(current_time, tasks)
@@ -221,16 +230,14 @@ class WorkShopBasedDRL(WorkShopSolution):
         return advantages
 
 
-
-
 if __name__ == '__main__':
     instance_specification = "Taillard"
     instance_path = "../Data/la01-Taillard.txt"
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopBasedDRL(work_shop)
 
-    # solution.train(10)
-    # solution.test(print_flag=True)
+    solution.train(10)
+    solution.test(print_flag=True)
 
-    solution.run(print_flag=True)
+    # solution.run(print_flag=True)
     pass

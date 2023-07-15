@@ -7,7 +7,6 @@
 
 
 # TODO EDD, SS, CR, Other Strategy
-# TODO Clean the code
 
 class ClassicalTaskScheduler:
 
@@ -24,9 +23,9 @@ class ClassicalTaskScheduler:
         elif strategy == 'LPT':
             idx = tasks['processing_time'].idxmax()
         elif strategy == 'SRTPT':
-            idx = tasks['remaining_process_time'].idxmin()
+            idx = tasks['remaining_processing_time'].idxmin()
         elif strategy == 'LRTPT':
-            idx = tasks['remaining_process_time'].idxmax()
+            idx = tasks['remaining_processing_time'].idxmax()
         elif strategy == 'LOR':
             idx = tasks['remaining_task_num'].idxmin()
         elif strategy == 'MOR':

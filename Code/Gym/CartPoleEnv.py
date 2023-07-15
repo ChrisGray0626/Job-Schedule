@@ -4,11 +4,11 @@
   @Author Chris
   @Date 2023/7/2
 """
+import os
 import random
 
 import gym
 import matplotlib.pyplot as plt
-import os
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 

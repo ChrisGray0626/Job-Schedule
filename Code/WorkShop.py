@@ -5,11 +5,12 @@
   @Date 2023/6/23
 """
 
+import random
+
 import numpy as np
 import pandas as pd
-import random
+
 import Util
-from Code import Constant
 
 pd.options.mode.chained_assignment = None
 
@@ -27,8 +28,9 @@ class WorkShop:
         self.job_first_task = None
         self.jobs = None
         self.next_task_mat = None
+        self.processing_times = None
+        self.total_processing_times = None
         self.remaining_processing_time_mat = None
-        self.task_processing_times = None
         self.tasks = None
         self.operations = None
         self.release = True
@@ -42,16 +44,16 @@ class WorkShop:
         self.init_operation()
 
     def init_definition(self):
-        self.job_type_num, self.task_type_num, self.job_tasks, self.task_processing_times = Util.parse_definition(
+        self.job_type_num, self.task_type_num, self.job_tasks, self.processing_times = Util.parse_definition(
             self.instance_specification, self.instance_path)
         self.job_first_task = self.job_tasks[:, 0]
         self.next_task_mat = Util.generate_next_task_mat(self.job_type_num, self.task_type_num, self.job_tasks)
-
+        self.total_processing_times = self.processing_times.sum(axis=1)
         self.remaining_processing_time_mat = Util.generate_remaining_processing_time_mat(self.job_type_num,
                                                                                          self.task_type_num,
                                                                                          self.job_first_task,
                                                                                          self.next_task_mat,
-                                                                                         self.task_processing_times)
+                                                                                         self.processing_times)
 
     def init_machine(self):
         self.machines = pd.DataFrame(columns=['machine_id', 'work_centre_id', 'next_idle_time']).astype(int)
@@ -64,11 +66,12 @@ class WorkShop:
     def init_job(self):
         self.jobs = pd.DataFrame(
             columns=['job_id', 'job_type', 'release_time', 'start_time', 'completed_time', 'current_task_type',
-                     'status', 'remaining_process_time', 'remaining_task_num']).astype(int)
+                     'status', 'remaining_processing_time', 'remaining_task_num']).astype(int)
 
     def init_task(self):
         self.tasks = pd.DataFrame(
-            columns=['task_id', 'job_id', 'task_type', 'processing_time', 'release_time', 'start_time', 'completed_time',
+            columns=['task_id', 'job_id', 'task_type', 'processing_time', 'release_time', 'start_time',
+                     'completed_time',
                      'status']).astype(int)
 
     def init_operation(self):
@@ -89,18 +92,18 @@ class WorkShop:
         completed_time = -1
         first_task_type = self.job_first_task[job_type]
         status = 0
-        remaining_process_time = self.remaining_processing_time_mat[job_type][first_task_type]
+        remaining_processing_time = self.remaining_processing_time_mat[job_type][first_task_type]
         remaining_task_num = self.task_type_num
         # Add the job
         job = [job_id, job_type, release_time, start_time, completed_time, first_task_type, status,
-               remaining_process_time, remaining_task_num]
+               remaining_processing_time, remaining_task_num]
         self.jobs.loc[job_id] = job
         # Add the first task
         first_task_id = self.add_task(job_id, job_type, first_task_type, current_time)
 
     def add_task(self, job_id, job_type, task_type, current_time):
         task_id = len(self.tasks)
-        processing_time = self.task_processing_times[job_type][task_type]
+        processing_time = self.processing_times[job_type][task_type]
         release_time = current_time
         start_time = -1
         completed_time = -1
@@ -149,9 +152,10 @@ class WorkShop:
             # Update the completed time of the job
             self.jobs.at[job_id, 'completed_time'] = completed_time
             self.jobs.at[job_id, 'status'] = 1
-            self.jobs.at[job_id, 'remaining_process_time'] = 0
+            self.jobs.at[job_id, 'remaining_processing_time'] = 0
         else:
-            self.jobs.at[job_id, 'remaining_process_time'] = self.remaining_processing_time_mat[job_type][next_task_type]
+            self.jobs.at[job_id, 'remaining_processing_time'] = self.remaining_processing_time_mat[job_type][
+                next_task_type]
             # Add the next task
             next_task_id = self.add_task(job_id, job_type, next_task_type, completed_time)
         self.jobs.at[job_id, 'remaining_task_num'] -= 1
@@ -164,17 +168,20 @@ class WorkShop:
 
     def find_idle_machine(self, work_centre_id, current_time):
         machine_ids = self.machines[
-            (self.machines['work_centre_id'] == work_centre_id) & (self.machines['next_idle_time'] <= current_time)]['machine_id']
+            (self.machines['work_centre_id'] == work_centre_id) & (self.machines['next_idle_time'] <= current_time)][
+            'machine_id']
 
         return machine_ids
 
     def find_pending_task(self, task_type, current_time):
-        tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time) & (self.tasks['start_time'] == -1)]
+        tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time) & (
+                    self.tasks['start_time'] == -1)]
 
         return tasks
 
     def find_pending_job(self, task_type, current_time):
-        jobs = self.jobs[(self.jobs['current_task_type'] == task_type) & (self.jobs['release_time'] <= current_time) & (self.jobs['status'] != 1)]
+        jobs = self.jobs[(self.jobs['current_task_type'] == task_type) & (self.jobs['release_time'] <= current_time) & (
+                    self.jobs['status'] != 1)]
 
         return jobs
 
