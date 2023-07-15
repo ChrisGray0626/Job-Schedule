@@ -12,11 +12,8 @@
 class ClassicalTaskScheduler:
 
     @staticmethod
-    def execute(strategy, tasks, jobs):
+    def execute(strategy, tasks):
         tasks = tasks.sort_values('job_id')
-        jobs = jobs.rename(columns={'release_time': 'job_release_time', 'start_time': 'job_start_time',
-                                    'completed_time': 'job_completed_time', 'status': 'job_status'})
-        tasks = tasks.merge(jobs, on='job_id', how='left')
 
         if strategy == 'FIFO':
             idx = tasks['release_time'].idxmin()

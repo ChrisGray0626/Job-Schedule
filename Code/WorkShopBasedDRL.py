@@ -56,7 +56,7 @@ class WorkShopBasedDRL(WorkShopSolution):
         return action
 
     @staticmethod
-    def calc_state(current_time, tasks, jobs):
+    def calc_state(current_time, tasks):
         task_num = len(tasks)
         mean_waiting_time = current_time - tasks['release_time'].mean()
         mean_processing_time = tasks['processing_time'].mean()
@@ -64,26 +64,27 @@ class WorkShopBasedDRL(WorkShopSolution):
         return np.array([task_num, mean_waiting_time, mean_processing_time])
 
     @staticmethod
-    def calc_reward(current_time, tasks, jobs):
+    def calc_reward(current_time, tasks):
         mean_waiting_time = current_time - tasks['release_time'].mean()
         reward = -mean_waiting_time
 
         return reward
 
     # TODO Split the trajectory
-    def schedule(self, current_time, task_type, tasks, jobs, machine_id, print_flag=False):
+    def schedule(self, current_time, task_type, tasks, machine_id, print_flag=False):
         # Calculate the state
-        state = self.calc_state(current_time, tasks, jobs)
+        state = self.calc_state(current_time, tasks)
         action = self.choose_action(state)
         strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[action]
-        task_id = self.task_scheduler.execute(strategy, tasks, jobs)
+        task_id = self.task_scheduler.execute(strategy, tasks)
         job_id, completed_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
         # Calculate the next state
         next_tasks = self.work_shop.find_pending_task(task_type, completed_time)
         next_jobs = self.work_shop.find_pending_job(task_type, completed_time)
-        next_state = self.calc_state(completed_time, next_tasks, next_jobs)
+        next_tasks = self.merge_task_job(next_tasks, next_jobs)
+        next_state = self.calc_state(completed_time, next_tasks)
         # Calculate the reward
-        reward = self.calc_reward(completed_time, next_tasks, next_jobs)
+        reward = self.calc_reward(completed_time, next_tasks)
         # Calculate the is_over
         is_over = len(next_tasks) == 1
 
@@ -219,14 +220,7 @@ class WorkShopBasedDRL(WorkShopSolution):
 
         return advantages
 
-    @staticmethod
-    def merge_task(tasks, jobs):
-        tasks = tasks.sort_values('job_id')
-        jobs = jobs.rename(columns={'release_time': 'job_release_time', 'start_time': 'job_start_time',
-                                    'completed_time': 'job_completed_time', 'status': 'job_status'})
-        tasks = tasks.merge(jobs, on='job_id', how='left')
 
-        return tasks
 
 
 if __name__ == '__main__':
@@ -235,8 +229,8 @@ if __name__ == '__main__':
     work_shop = WorkShop(instance_specification, instance_path, 3)
     solution = WorkShopBasedDRL(work_shop)
 
-    solution.train(10)
-    solution.test(print_flag=True)
+    # solution.train(10)
+    # solution.test(print_flag=True)
 
-    # solution.run(print_flag=True)
+    solution.run(print_flag=True)
     pass
