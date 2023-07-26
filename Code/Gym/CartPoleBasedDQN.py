@@ -5,6 +5,7 @@
   @Date 2023/7/2
 """
 import random
+from collections import deque
 
 import torch
 
@@ -18,99 +19,91 @@ class CartPoleBasedDQN(CartPoleSolution):
             torch.nn.Linear(4, 128),
             torch.nn.ReLU(),
             torch.nn.Linear(128, 2),
-            torch.nn.Softmax(dim=1),
         )
-        self.model_td = torch.nn.Sequential(
+        self.next_value_model = torch.nn.Sequential(
             torch.nn.Linear(4, 128),
             torch.nn.ReLU(),
-            torch.nn.Linear(128, 1),
+            torch.nn.Linear(128, 2),
         )
+        self.next_value_model.load_state_dict(self.value_model.state_dict())
 
-        self.value_model.forward(torch.randn(2, 4)), self.model_td.forward(torch.randn(2, 4))
+        self.trajectory = deque()
 
     def choose_action(self, state):
+        if random.random() < 0.01:
+            return random.choice([0, 1])
+
         state = torch.FloatTensor(state).reshape(1, 4)
-        # [1, 4] -> [1, 2]
-        prob = self.value_model.forward(state)
-        # 根据概率选择一个动作
-        action = random.choices(range(2), weights=prob[0].tolist(), k=1)[0]
+        action = self.value_model.forward(state).argmax().item()
 
         return action
 
-    @staticmethod
-    def calc_advantage(deltas):
-        advantages = []
-        # 反向遍历 deltas
-        s = 0.0
-        for delta in deltas[::-1]:
-            s = 0.98 * 0.95 * s + delta
-            advantages.append(s)
-        # 逆序
-        advantages.reverse()
+    def calc_value(self, state, action):
+        value = self.value_model.forward(state)
+        value = value.gather(dim=1, index=action)
 
-        return advantages
+        return value
+
+    def calc_target(self, reward, next_state, is_over):
+        with torch.no_grad():
+            target = self.next_value_model.forward(next_state)
+        # 取所有动作中分数最大的
+        # [b, 11] -> [b, 1]
+        target = target.max(dim=1)[0]
+        target = target.reshape(-1, 1)
+
+        target = target * 0.98
+        target *= (1 - is_over)
+        target += reward
+
+        return target
+
+    def play(self):
+        count = 0
+        MINIMUM_ADD_NUM = 200
+        MAXIMUM_NUM = 10000
+        while count < MINIMUM_ADD_NUM:
+            trajectory = self.env.play(self.choose_action, False)
+            self.trajectory += trajectory
+            count += len(trajectory)
+        while len(self.trajectory) > MAXIMUM_NUM:
+            self.trajectory.popleft()
+
+    def sample_trajectory(self):
+        SAMPLE_NUM = 64
+        trajectory = random.sample(self.trajectory, SAMPLE_NUM)
+        return trajectory
 
     def train(self):
         optimizer = torch.optim.Adam(self.value_model.parameters(), lr=1e-3)
-        optimizer_td = torch.optim.Adam(self.model_td.parameters(), lr=1e-2)
         loss_fn = torch.nn.MSELoss()
         # 玩N局游戏,每局游戏训练M次
         for epoch in range(500):
-            # 玩一局游戏,得到数据
-            trajectory = self.env.play(self.choose_action, False)
+            self.play()
             # states -> [b, 4]
             # rewards -> [b, 1]
             # actions -> [b, 1]
             # next_states -> [b, 4]
             # is_overs -> [b, 1]
-            states, rewards, actions, next_states, is_overs = self.parse_trajectory(trajectory)
-            # 计算values和targets
-            # [b, 4] -> [b, 1]
-            values = self.model_td.forward(states)
-            # [b, 4] -> [b, 1]
-            targets = self.model_td.forward(next_states).detach()
-            targets = targets * 0.98
-            targets *= (1 - is_overs)
-            targets += rewards
-            # 计算优势,这里的advantages有点像是策略梯度里的reward_sum
-            # 只是这里计算的不是reward,而是target和value的差
-            # [b, 1]
-            deltas = (targets - values).squeeze(dim=1).tolist()
-            advantages = self.calc_advantage(deltas)
-            advantages = torch.FloatTensor(advantages).reshape(-1, 1)
-            # 取出每一步动作的概率
-            # [b, 2] -> [b, 2] -> [b, 1]
-            old_probs = self.value_model.forward(states)
-            old_probs = old_probs.gather(dim=1, index=actions)
-            old_probs = old_probs.detach()
-            # 每批数据反复训练10次
-            for _ in range(10):
-                # 重新计算每一步动作的概率
-                # [b, 4] -> [b, 2]
-                new_probs = self.value_model.forward(states)
-                # [b, 2] -> [b, 1]
-                new_probs = new_probs.gather(dim=1, index=actions)
-                new_probs = new_probs
-                # 求出概率的变化
-                # [b, 1] - [b, 1] -> [b, 1]
-                ratios = new_probs / old_probs
-                # 计算截断的和不截断的两份loss,取其中小的
-                # [b, 1] * [b, 1] -> [b, 1]
-                surr1 = ratios * advantages
-                # [b, 1] * [b, 1] -> [b, 1]
-                surr2 = torch.clamp(ratios, 0.8, 1.2) * advantages
-                loss = -torch.min(surr1, surr2)
-                loss = loss.mean()
-                # 重新计算value,并计算时序差分loss
-                values = self.model_td.forward(states)
-                loss_td = loss_fn(values, targets)
+            for i in range(200):
+                trajectory = self.sample_trajectory()
+                states, rewards, actions, next_states, is_overs = self.parse_trajectory(trajectory)
+                # 计算values和targets
+                # [b, 4] -> [b, 1]
+                values = self.calc_value(states, actions)
+                # [b, 4] -> [b, 1]
+                targets = self.calc_target(rewards, next_states, is_overs)
+
                 # 更新参数
+                loss = loss_fn(values, targets)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                optimizer_td.zero_grad()
-                loss_td.backward()
-                optimizer_td.step()
+
+                # 把model的参数复制给next_model
+                if (i + 1) % 10 == 0:
+                    self.next_value_model.load_state_dict(self.value_model.state_dict())
+
             if (epoch + 1) % 50 == 0:
                 test_result = sum([self.test(play=False) for _ in range(10)]) / 10
                 print(epoch + 1, test_result)
