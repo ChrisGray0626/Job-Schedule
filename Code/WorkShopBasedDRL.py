@@ -21,20 +21,28 @@ class WorkShopBasedDRL(WorkShopSolution):
     def __init__(self, _work_shop):
         super().__init__(_work_shop, Constant.DYNAMICAL_SCHEDULING_STRATEGY)
         self.task_scheduler = ClassicalTaskScheduler()
-        self.input_size = 5
+        self.input_size = 6
         self.output_size = len(Constant.CLASSICAL_SCHEDULING_STRATEGIES)
         self.device = torch.device("cuda")
         self.policy_model = torch.nn.Sequential(
-            torch.nn.Linear(self.input_size, 128),
+            torch.nn.Linear(self.input_size, 2 ** self.input_size - 2),
             torch.nn.ReLU(),
-            torch.nn.Linear(128, self.output_size),
+            torch.nn.Linear(2 ** self.input_size - 2, 2 ** self.input_size - 1),
+            torch.nn.ReLU(),
+            torch.nn.Linear(2 ** self.input_size - 1, 2 ** self.input_size),
+            torch.nn.ReLU(),
+            torch.nn.Linear(2 ** self.input_size, self.output_size),
             torch.nn.Softmax(dim=1),
         )
 
         self.value_model = torch.nn.Sequential(
-            torch.nn.Linear(self.input_size, 128),
+            torch.nn.Linear(self.input_size, 2 ** self.input_size - 2),
             torch.nn.ReLU(),
-            torch.nn.Linear(128, 1),
+            torch.nn.Linear(2 ** self.input_size - 2, 2 ** self.input_size - 1),
+            torch.nn.ReLU(),
+            torch.nn.Linear(2 ** self.input_size - 1, 2 ** self.input_size),
+            torch.nn.ReLU(),
+            torch.nn.Linear(2 ** self.input_size, 1),
         )
         random_input = torch.randn(2, self.input_size)
 
@@ -58,12 +66,13 @@ class WorkShopBasedDRL(WorkShopSolution):
     @staticmethod
     def calc_state(current_time, tasks):
         task_num = len(tasks)
+        mean_release_time = tasks['release_time'].mean()
         mean_waiting_time = current_time - tasks['release_time'].mean()
         mean_processing_time = tasks['processing_time'].mean()
         mean_remaining_processing_time = tasks['remaining_processing_time'].mean()
         mean_remaining_task_num = tasks['remaining_task_num'].mean()
 
-        return np.array([task_num, mean_waiting_time, mean_processing_time, mean_remaining_processing_time,
+        return np.array([task_num, mean_release_time, mean_waiting_time, mean_processing_time, mean_remaining_processing_time,
                          mean_remaining_task_num])
 
     def calc_reward(self, current_time, tasks):
