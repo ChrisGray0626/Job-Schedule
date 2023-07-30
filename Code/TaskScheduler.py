@@ -6,7 +6,7 @@
 """
 
 
-# TODO EDD, SS, CR, Other Strategy
+# TODO EDD, SS, CR
 
 class ClassicalTaskScheduler:
 

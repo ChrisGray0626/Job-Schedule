@@ -15,6 +15,7 @@ import Util
 pd.options.mode.chained_assignment = None
 
 
+# TODO Remove job
 class WorkShop:
 
     def __init__(self, instance_specification, instance_path, parallel_machine_num):
@@ -90,7 +91,7 @@ class WorkShop:
     def calc_due_time(current_time, job_processing_time):
         due_factor_pool = [1.0, 1.2, 1.4, 1.6, 1.8, 2.0]
         due_factor = random.choice(due_factor_pool)
-        due_time = current_time + job_processing_time * due_factor
+        due_time = np.floor(current_time + job_processing_time * due_factor)
 
         return due_time
 
@@ -169,10 +170,6 @@ class WorkShop:
             # Add the next task
             next_task_id = self.add_task(job_id, job_type, next_task_type, completed_time)
         self.jobs.at[job_id, 'remaining_task_num'] -= 1
-        # Update the operation
-        # operator_id = len(self.operations)
-        # self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
-        #                                     completed_time]
 
         return job_id, completed_time
 
@@ -183,15 +180,16 @@ class WorkShop:
 
         return machine_ids
 
+    # TODO find current task
     def find_pending_task(self, task_type, current_time):
         tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time) & (
-                    self.tasks['start_time'] == -1)]
+                self.tasks['start_time'] == -1)]
 
         return tasks
 
     def find_pending_job(self, task_type, current_time):
         jobs = self.jobs[(self.jobs['current_task_type'] == task_type) & (self.jobs['release_time'] <= current_time) & (
-                    self.jobs['status'] != 1)]
+                self.jobs['status'] != 1)]
 
         return jobs
 
