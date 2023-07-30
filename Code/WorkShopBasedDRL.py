@@ -53,6 +53,8 @@ class WorkShopBasedDRL(WorkShopSolution):
         self.value_model.forward(random_input)
         self.policy_model.forward(random_input)
 
+        self.gamma = 0.98
+
     def choose_action(self, state):
         state = torch.FloatTensor(state).reshape(1, self.input_size)
         state = state.to(self.device)
@@ -63,6 +65,7 @@ class WorkShopBasedDRL(WorkShopSolution):
 
         return action
 
+    # TODO State
     @staticmethod
     def calc_state(current_time, tasks):
         task_num = len(tasks)
@@ -72,9 +75,11 @@ class WorkShopBasedDRL(WorkShopSolution):
         mean_remaining_processing_time = tasks['remaining_processing_time'].mean()
         mean_remaining_task_num = tasks['remaining_task_num'].mean()
 
-        return np.array([task_num, mean_release_time, mean_waiting_time, mean_processing_time, mean_remaining_processing_time,
-                         mean_remaining_task_num])
+        return np.array(
+            [task_num, mean_release_time, mean_waiting_time, mean_processing_time, mean_remaining_processing_time,
+             mean_remaining_task_num])
 
+    # TODO Reward
     def calc_reward(self, current_time, tasks):
         # Calculate the mean of waiting time
         mean_waiting_time = current_time - tasks['release_time'].mean()
@@ -111,6 +116,29 @@ class WorkShopBasedDRL(WorkShopSolution):
 
         return state, reward, action, next_state, is_over
 
+    def calc_target(self, rewards, next_states, is_overs):
+        with torch.no_grad():
+            targets = self.value_model.forward(next_states).detach()
+        targets = self.gamma * targets
+        targets *= (1 - is_overs)
+        targets += rewards
+
+        return targets
+
+    def calc_advantage(self, targets, values):
+        deltas = (targets - values).squeeze(dim=1).tolist()
+        advantages = []
+        # 反向遍历 deltas
+        advantage = 0.0
+        for delta in deltas[::-1]:
+            advantage = self.gamma * advantage + delta
+            advantages.append(advantage)
+        # 逆序
+        advantages.reverse()
+        advantages = torch.FloatTensor(advantages).reshape(-1, 1)
+
+        return advantages
+
     def train(self, epoch_num):
         optimizer = torch.optim.Adam(self.policy_model.parameters(), lr=1e-3)
         optimizer_td = torch.optim.Adam(self.value_model.parameters(), lr=1e-2)
@@ -120,20 +148,16 @@ class WorkShopBasedDRL(WorkShopSolution):
             trajectory = self.execute()
             for task_type in range(self.work_shop.task_type_num):
                 work_centre_trajectory = trajectory[task_type]
+                # TODO min sample ?
                 states, rewards, actions, next_states, is_overs = self.parse_trajectory(work_centre_trajectory)
 
                 values = self.value_model.forward(states)
                 # [b, 4] -> [b, 1]
-                targets = self.value_model.forward(next_states).detach()
-                targets = targets * 0.98
-                targets *= (1 - is_overs)
-                targets += rewards
+                targets = self.calc_target(rewards, next_states, is_overs)
                 # 计算优势,这里的advantages有点像是策略梯度里的reward_sum
                 # 只是这里计算的不是reward,而是target和value的差
                 # [b, 1]
-                deltas = (targets - values).squeeze(dim=1).tolist()
-                advantages = self.calc_advantage(deltas)
-                advantages = torch.FloatTensor(advantages).reshape(-1, 1)
+                advantages = self.calc_advantage(targets, values)
                 advantages = advantages.to(self.device)
                 # 取出每一步动作的概率
                 # [b, 2] -> [b, 2] -> [b, 1]
@@ -224,19 +248,6 @@ class WorkShopBasedDRL(WorkShopSolution):
         is_overs = is_overs.to(self.device)
 
         return states, rewards, actions, next_states, is_overs
-
-    @staticmethod
-    def calc_advantage(deltas):
-        advantages = []
-        # 反向遍历 deltas
-        s = 0.0
-        for delta in deltas[::-1]:
-            s = 0.98 * 0.95 * s + delta
-            advantages.append(s)
-        # 逆序
-        advantages.reverse()
-
-        return advantages
 
 
 if __name__ == '__main__':

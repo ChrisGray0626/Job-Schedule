@@ -64,9 +64,10 @@ class WorkShop:
                 self.machines.loc[machine_id] = [machine_id, i, 0]
 
     def init_job(self):
+        # TODO Due time
         self.jobs = pd.DataFrame(
             columns=['job_id', 'job_type', 'release_time', 'start_time', 'completed_time', 'current_task_type',
-                     'status', 'remaining_processing_time', 'remaining_task_num']).astype(int)
+                     'status', 'remaining_processing_time', 'remaining_task_num', 'due_time']).astype(int)
 
     def init_task(self):
         self.tasks = pd.DataFrame(
@@ -85,6 +86,14 @@ class WorkShop:
         self.operations = self.operations.drop(self.operations.index)
         self.release = True
 
+    @staticmethod
+    def calc_due_time(current_time, job_processing_time):
+        due_factor_pool = [1.0, 1.2, 1.4, 1.6, 1.8, 2.0]
+        due_factor = random.choice(due_factor_pool)
+        due_time = current_time + job_processing_time * due_factor
+
+        return due_time
+
     def add_job(self, job_type, current_time):
         job_id = len(self.jobs)
         release_time = current_time
@@ -92,11 +101,12 @@ class WorkShop:
         completed_time = -1
         first_task_type = self.job_first_task[job_type]
         status = 0
-        remaining_processing_time = self.remaining_processing_time_mat[job_type][first_task_type]
+        remaining_processing_time = self.total_processing_times[job_type]
         remaining_task_num = self.task_type_num
+        due_time = self.calc_due_time(current_time, self.total_processing_times[job_type])
         # Add the job
         job = [job_id, job_type, release_time, start_time, completed_time, first_task_type, status,
-               remaining_processing_time, remaining_task_num]
+               remaining_processing_time, remaining_task_num, due_time]
         self.jobs.loc[job_id] = job
         # Add the first task
         first_task_id = self.add_task(job_id, job_type, first_task_type, current_time)
