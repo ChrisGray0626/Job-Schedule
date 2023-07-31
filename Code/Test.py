@@ -11,6 +11,7 @@ import pandas as pd
 import torch
 
 import Util
+from Code import Constant
 
 
 def dataframe():
@@ -49,6 +50,11 @@ def torch_test():
     print(torch.cuda.get_device_name(0))
 
 
+def max_value_test():
+    print(Constant.MAX_VALUE)
+    print(type(Constant.MAX_VALUE))
+
+
 if __name__ == '__main__':
-    torch_test()
+    max_value_test()
     pass

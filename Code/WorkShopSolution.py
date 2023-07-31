@@ -23,7 +23,7 @@ class WorkShopSolution:
         jobs = self.work_shop.find_pending_job(task_type, current_time)
         tasks = WorkShop.merge_task_job(tasks, jobs)
         task_id = self.task_scheduler.execute(current_time, self.task_schedule_strategy, tasks)
-        job_id, completed_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
+        job_id, next_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
 
         if print_flag:
             print(current_time, job_id, task_type)
@@ -54,7 +54,7 @@ class WorkShopSolution:
                 continue
             if len(tasks) == 1:
                 task_id = tasks.index[0]
-                job_id, completed_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
+                job_id, next_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
                 if print_flag:
                     print(current_time, job_id, task_type)
                 continue
@@ -67,16 +67,25 @@ class WorkShopSolution:
         self.work_shop.print_result()
 
 
+def execute(work_shop, task_schedule_strategy, print_flag=False):
+    solution = WorkShopSolution(work_shop, task_schedule_strategy)
+    start_time = time.time()
+    trajectory = solution.execute(print_flag=print_flag)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print("Task schedule strategy: ", task_schedule_strategy)
+    # print("Execution time: ", execution_time)
+    print("Mean tardiness: ", work_shop.evaluate_mean_tardiness())
+    work_shop.print_result()
+
+
 if __name__ == '__main__':
     instance_specification = "Taillard"
     instance_path = "../Data/la01-Taillard.txt"
-    task_schedule_strategy = Constant.SCHEDULING_STRATEGIES[2]
-    work_shop = WorkShop(instance_specification, instance_path, 3)
-    solution = WorkShopSolution(work_shop, task_schedule_strategy)
-    start_time = time.time()
-    trajectory = solution.execute(print_flag=True)
-    end_time = time.time()
-    execution_time = end_time - start_time
-    print("Execution time: ", execution_time)
-    solution.print_result()
+    # work_shop = WorkShop(instance_specification, instance_path, 3)
+    # task_schedule_strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[9]
+    # execute(work_shop, task_schedule_strategy, print_flag=True)
+    for task_schedule_strategy in Constant.CLASSICAL_SCHEDULING_STRATEGIES:
+        work_shop = WorkShop(instance_specification, instance_path, 3)
+        execute(work_shop, task_schedule_strategy, print_flag=False)
     pass

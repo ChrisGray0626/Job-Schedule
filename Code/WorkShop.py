@@ -15,7 +15,6 @@ import Util
 pd.options.mode.chained_assignment = None
 
 
-# TODO Remove job
 class WorkShop:
 
     def __init__(self, instance_specification, instance_path, parallel_machine_num):
@@ -172,7 +171,9 @@ class WorkShop:
             next_task_id = self.add_task(job_id, job_type, next_task_type, completed_time)
         self.jobs.at[job_id, 'remaining_task_num'] -= 1
 
-        return job_id, completed_time
+        next_time = self.find_next_idle_time(task_type)
+
+        return job_id, next_time
 
     def find_idle_machine(self, work_centre_id, current_time):
         machine_ids = self.machines[
@@ -181,7 +182,11 @@ class WorkShop:
 
         return machine_ids
 
-    # TODO find current task
+    def find_next_idle_time(self, work_centre_id):
+        next_idle_time = self.machines[self.machines['work_centre_id'] == work_centre_id]['next_idle_time'].min()
+
+        return next_idle_time
+
     def find_current_task(self, task_type, current_time):
         tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time)]
 
@@ -223,3 +228,10 @@ class WorkShop:
         tasks = tasks.merge(jobs, on='job_id', how='left')
 
         return tasks
+
+    def evaluate_mean_tardiness(self):
+        self.jobs['tardiness'] = self.jobs['completed_time'] - self.jobs['due_time']
+        self.jobs['tardiness'] = self.jobs['tardiness'].apply(lambda x: max(x, 0))
+        mean_tardiness = self.jobs['tardiness'].mean()
+
+        return mean_tardiness
