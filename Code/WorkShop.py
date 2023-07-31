@@ -88,7 +88,7 @@ class WorkShop:
 
     @staticmethod
     def calc_due_time(current_time, job_processing_time):
-        due_factor_pool = [1.0, 1.2, 1.4, 1.6, 1.8, 2.0]
+        due_factor_pool = [1.0, 1.1, 1.2]
         due_factor = random.choice(due_factor_pool)
         due_time = int(current_time + job_processing_time * due_factor)
 
@@ -171,9 +171,7 @@ class WorkShop:
             next_task_id = self.add_task(job_id, job_type, next_task_type, completed_time)
         self.jobs.at[job_id, 'remaining_task_num'] -= 1
 
-        next_time = self.find_next_idle_time(task_type)
-
-        return job_id, next_time
+        return job_id, completed_time
 
     def find_idle_machine(self, work_centre_id, current_time):
         machine_ids = self.machines[
@@ -190,7 +188,7 @@ class WorkShop:
     def find_current_task(self, task_type, current_time):
         tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time)]
 
-        return tasks
+        return tasks.copy(deep=True)
 
     def find_pending_task(self, task_type, current_time):
         tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time) & (
@@ -199,9 +197,9 @@ class WorkShop:
         return tasks
 
     def find_current_job(self, task_type, current_time):
-        jobs = self.jobs[(self.jobs['current_task_type'] == task_type) & (self.jobs['release_time'] <= current_time)]
+        jobs = self.jobs[(self.jobs['release_time'] <= current_time)]
 
-        return jobs
+        return jobs.copy(deep=True)
 
     def find_pending_job(self, task_type, current_time):
         jobs = self.jobs[(self.jobs['current_task_type'] == task_type) & (self.jobs['release_time'] <= current_time) & (
@@ -210,13 +208,15 @@ class WorkShop:
         return jobs
 
     def is_over(self):
-        pending_job_num = len(self.jobs[self.jobs['status'] != 1])
+        pending_job_num = len(self.jobs[self.jobs['completed_time'] == -1])
 
         return pending_job_num == 0
 
     def print_result(self):
+        mean_tardiness = self.evaluate_mean_tardiness()
         job_completed_time = self.jobs['completed_time'].max()
         task_completed_time = self.tasks['completed_time'].max()
+        print('Mean tardiness: ' + str(mean_tardiness))
         print('Job completed time: ' + str(job_completed_time))
         print('Task completed time: ' + str(task_completed_time))
 

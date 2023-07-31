@@ -76,6 +76,8 @@ class CartPoleBasedPPO(CartPoleBasedAC):
                 new_probs = new_probs.gather(dim=1, index=actions)
                 # 求出概率的变化
                 # [b, 1] - [b, 1] -> [b, 1]
+                print("new_probs", new_probs)
+                print("old_probs", old_probs)
                 ratios = new_probs / old_probs
                 # 计算截断的和不截断的两份loss,取其中小的
                 # [b, 1] * [b, 1] -> [b, 1]
@@ -101,7 +103,7 @@ class CartPoleBasedPPO(CartPoleBasedAC):
 
 
 if __name__ == '__main__':
-    cart_pole = CartPoleBasedAC()
+    cart_pole = CartPoleBasedPPO()
     cart_pole.train()
     cart_pole.test(play=False)
     pass

@@ -82,10 +82,10 @@ def execute(work_shop, task_schedule_strategy, print_flag=False):
 if __name__ == '__main__':
     instance_specification = "Taillard"
     instance_path = "../Data/la01-Taillard.txt"
-    # work_shop = WorkShop(instance_specification, instance_path, 3)
-    # task_schedule_strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[9]
-    # execute(work_shop, task_schedule_strategy, print_flag=True)
-    for task_schedule_strategy in Constant.CLASSICAL_SCHEDULING_STRATEGIES:
-        work_shop = WorkShop(instance_specification, instance_path, 3)
-        execute(work_shop, task_schedule_strategy, print_flag=False)
+    work_shop = WorkShop(instance_specification, instance_path, 3)
+    task_schedule_strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[10]
+    execute(work_shop, task_schedule_strategy, print_flag=True)
+    # for task_schedule_strategy in Constant.CLASSICAL_SCHEDULING_STRATEGIES:
+    #     work_shop = WorkShop(instance_specification, instance_path, 3)
+    #     execute(work_shop, task_schedule_strategy, print_flag=False)
     pass

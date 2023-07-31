@@ -4,6 +4,7 @@
   @Author Chris
   @Date 2023/6/24
 """
+import numpy as np
 
 
 class ClassicalTaskScheduler:
@@ -40,7 +41,7 @@ class ClassicalTaskScheduler:
             idx = tasks['critical_ratio'].idxmin()
         else:
             raise Exception("Unknown Strategy")
-        task = tasks.iloc[idx]
+        task = tasks.loc[idx]
         task_id = task['task_id']
 
         return task_id
