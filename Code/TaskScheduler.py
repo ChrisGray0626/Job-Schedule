@@ -6,12 +6,10 @@
 """
 
 
-# TODO EDD, SS, CR
-
 class ClassicalTaskScheduler:
 
     @staticmethod
-    def execute(strategy, tasks):
+    def execute(current_time, strategy, tasks):
         tasks = tasks.sort_values('job_id')
 
         if strategy == 'FIFO':
@@ -32,6 +30,14 @@ class ClassicalTaskScheduler:
             idx = tasks['remaining_task_num'].idxmax()
         elif strategy == 'ERD':
             idx = tasks['job_release_time'].idxmin()
+        elif strategy == 'EDD':
+            idx = tasks['due_date'].idxmin()
+        elif strategy == 'SS':
+            tasks['slack_time'] = tasks['due_date'] - current_time - tasks['remaining_processing_time']
+            idx = tasks['slack_time'].idxmin()
+        elif strategy == 'CR':
+            tasks['critical_ratio'] = (tasks['due_date'] - current_time) / tasks['total_processing_time']
+            idx = tasks['critical_ratio'].idxmin()
         else:
             raise Exception("Unknown Strategy")
         task = tasks.iloc[idx]

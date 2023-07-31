@@ -18,8 +18,11 @@ class WorkShopSolution:
         self.job_batch_num = _job_batch_num
         self.task_scheduler = ClassicalTaskScheduler()
 
-    def schedule(self, current_time, task_type, tasks, machine_id, print_flag=False):
-        task_id = self.task_scheduler.execute(self.task_schedule_strategy, tasks)
+    def schedule(self, current_time, task_type, machine_id, print_flag=False):
+        tasks = self.work_shop.find_pending_task(task_type, current_time)
+        jobs = self.work_shop.find_pending_job(task_type, current_time)
+        tasks = WorkShop.merge_task_job(tasks, jobs)
+        task_id = self.task_scheduler.execute(current_time, self.task_schedule_strategy, tasks)
         job_id, completed_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
 
         if print_flag:
@@ -55,21 +58,10 @@ class WorkShopSolution:
                 if print_flag:
                     print(current_time, job_id, task_type)
                 continue
-            jobs = self.work_shop.find_pending_job(task_type, current_time)
-            tasks = self.merge_task_job(tasks, jobs)
-            info = self.schedule(current_time, task_type, tasks, machine_id, print_flag)
+            info = self.schedule(current_time, task_type, machine_id, print_flag)
             trajectory.append(info)
 
         return trajectory
-
-    @staticmethod
-    def merge_task_job(tasks, jobs):
-        tasks = tasks.sort_values('job_id')
-        jobs = jobs.rename(columns={'release_time': 'job_release_time', 'start_time': 'job_start_time',
-                                    'completed_time': 'job_completed_time', 'status': 'job_status'})
-        tasks = tasks.merge(jobs, on='job_id', how='left')
-
-        return tasks
 
     def print_result(self):
         self.work_shop.print_result()

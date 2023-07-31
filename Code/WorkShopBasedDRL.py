@@ -94,17 +94,20 @@ class WorkShopBasedDRL(WorkShopSolution):
 
         return reward
 
-    def schedule(self, current_time, task_type, tasks, machine_id, print_flag=False):
+    def schedule(self, current_time, task_type, machine_id, print_flag=False):
+        tasks = self.work_shop.find_current_task(task_type, current_time)
+        jobs = self.work_shop.find_current_job(task_type, current_time)
+        tasks = WorkShop.merge_task_job(tasks, jobs)
         # Calculate the state
         state = self.calc_state(current_time, tasks)
         action = self.choose_action(state)
         strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[action]
-        task_id = self.task_scheduler.execute(strategy, tasks)
+        task_id = self.task_scheduler.execute(current_time, strategy, tasks)
         job_id, completed_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
         # Calculate the next state
         next_tasks = self.work_shop.find_pending_task(task_type, completed_time)
         next_jobs = self.work_shop.find_pending_job(task_type, completed_time)
-        next_tasks = self.merge_task_job(next_tasks, next_jobs)
+        next_tasks = WorkShop.merge_task_job(next_tasks, next_jobs)
         next_state = self.calc_state(completed_time, next_tasks)
         # Calculate the reward
         reward = self.calc_reward(completed_time, next_tasks)

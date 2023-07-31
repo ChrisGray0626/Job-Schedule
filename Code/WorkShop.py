@@ -65,10 +65,10 @@ class WorkShop:
                 self.machines.loc[machine_id] = [machine_id, i, 0]
 
     def init_job(self):
-        # TODO Due time
         self.jobs = pd.DataFrame(
             columns=['job_id', 'job_type', 'release_time', 'start_time', 'completed_time', 'current_task_type',
-                     'status', 'remaining_processing_time', 'remaining_task_num', 'due_time']).astype(int)
+                     'status', 'remaining_processing_time', 'remaining_task_num', 'total_processing_time',
+                     'due_time']).astype(int)
 
     def init_task(self):
         self.tasks = pd.DataFrame(
@@ -91,7 +91,7 @@ class WorkShop:
     def calc_due_time(current_time, job_processing_time):
         due_factor_pool = [1.0, 1.2, 1.4, 1.6, 1.8, 2.0]
         due_factor = random.choice(due_factor_pool)
-        due_time = np.floor(current_time + job_processing_time * due_factor)
+        due_time = int(current_time + job_processing_time * due_factor)
 
         return due_time
 
@@ -104,10 +104,11 @@ class WorkShop:
         status = 0
         remaining_processing_time = self.total_processing_times[job_type]
         remaining_task_num = self.task_type_num
+        total_processing_time = self.total_processing_times[job_type]
         due_time = self.calc_due_time(current_time, self.total_processing_times[job_type])
         # Add the job
         job = [job_id, job_type, release_time, start_time, completed_time, first_task_type, status,
-               remaining_processing_time, remaining_task_num, due_time]
+               remaining_processing_time, remaining_task_num, total_processing_time, due_time]
         self.jobs.loc[job_id] = job
         # Add the first task
         first_task_id = self.add_task(job_id, job_type, first_task_type, current_time)
@@ -181,15 +182,25 @@ class WorkShop:
         return machine_ids
 
     # TODO find current task
+    def find_current_task(self, task_type, current_time):
+        tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time)]
+
+        return tasks
+
     def find_pending_task(self, task_type, current_time):
         tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time) & (
                 self.tasks['start_time'] == -1)]
 
         return tasks
 
+    def find_current_job(self, task_type, current_time):
+        jobs = self.jobs[(self.jobs['current_task_type'] == task_type) & (self.jobs['release_time'] <= current_time)]
+
+        return jobs
+
     def find_pending_job(self, task_type, current_time):
         jobs = self.jobs[(self.jobs['current_task_type'] == task_type) & (self.jobs['release_time'] <= current_time) & (
-                self.jobs['status'] != 1)]
+                self.jobs['completed_time'] == -1)]
 
         return jobs
 
@@ -203,3 +214,12 @@ class WorkShop:
         task_completed_time = self.tasks['completed_time'].max()
         print('Job completed time: ' + str(job_completed_time))
         print('Task completed time: ' + str(task_completed_time))
+
+    @staticmethod
+    def merge_task_job(tasks, jobs):
+        tasks = tasks.sort_values('job_id')
+        jobs = jobs.rename(columns={'release_time': 'job_release_time', 'start_time': 'job_start_time',
+                                    'completed_time': 'job_completed_time', 'status': 'job_status'})
+        tasks = tasks.merge(jobs, on='job_id', how='left')
+
+        return tasks
