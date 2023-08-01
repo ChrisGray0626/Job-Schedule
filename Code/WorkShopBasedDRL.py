@@ -11,7 +11,8 @@ import numpy as np
 import torch
 
 import Constant
-from Code import Test
+import Rewarder
+from Code import Test, Stater
 from Code.WorkShop import WorkShop
 from TaskScheduler import ClassicalTaskScheduler
 from WorkShopSolution import WorkShopSolution
@@ -68,105 +69,12 @@ class WorkShopBasedDRL(WorkShopSolution):
         print(prob, action)
         return action
 
-    @staticmethod
-    def calc_state(current_time, task_type, tasks):
-        tasks['current_time'] = current_time
-        task_num = len(tasks)
-        # Completion ratio
-        completed_tasks = tasks[(tasks['completed_time'] != -1) & (tasks['completed_time'] <= current_time)]
-        completion_ratio = len(completed_tasks) / task_num
-        # Tardiness ratio
-        tasks['completed_time'] = tasks['completed_time'].replace(-1, Constant.MAX_VALUE)
-        tardiness_tasks = tasks[tasks[['current_time', 'completed_time']].min(axis=1) > tasks['due_time']]
-        tardiness_ratio = len(tardiness_tasks) / task_num
-        waiting_tasks = tasks[tasks['start_time'] == -1]
-        # Release time
-        minimum_release_time = waiting_tasks['release_time'].min()
-        maximum_release_time = waiting_tasks['release_time'].max()
-        mean_release_time = waiting_tasks['release_time'].mean()
-        # Processing time
-        minimum_processing_time = waiting_tasks['processing_time'].min()
-        maximum_processing_time = waiting_tasks['processing_time'].max()
-        mean_processing_time = waiting_tasks['processing_time'].mean()
-        # Remaining processing time
-        minimum_remaining_processing_time = waiting_tasks['remaining_processing_time'].min()
-        maximum_remaining_processing_time = waiting_tasks['remaining_processing_time'].max()
-        mean_remaining_processing_time = waiting_tasks['remaining_processing_time'].mean()
-        mean_total_processing_time = waiting_tasks['total_processing_time'].mean()
-        # Remaining task num
-        minimum_remaining_task_num = waiting_tasks['remaining_task_num'].min()
-        maximum_remaining_task_num = waiting_tasks['remaining_task_num'].max()
-        mean_remaining_task_num = waiting_tasks['remaining_task_num'].mean()
-        # Job release time
-        minimum_job_release_time = waiting_tasks['job_release_time'].min()
-        mean_job_release_time = waiting_tasks['job_release_time'].mean()
-        # Due time
-        minimum_due_time = waiting_tasks['due_time'].min()
-        mean_due_time = waiting_tasks['due_time'].mean()
-        # Stack time
-        waiting_tasks['slack_time'] = waiting_tasks['due_time'] - current_time - waiting_tasks[
-            'remaining_processing_time']
-        minimum_stack_time = waiting_tasks['slack_time'].min()
-        mean_stack_time = waiting_tasks['slack_time'].mean()
-        # Critical ratio
-        waiting_tasks['critical_ratio'] = (waiting_tasks['due_time'] - current_time) / waiting_tasks[
-            'total_processing_time']
-        minimum_critical_ratio = waiting_tasks['critical_ratio'].min()
-        mean_critical_ratio = waiting_tasks['critical_ratio'].mean()
-        # Waiting time
-        mean_waiting_time = current_time - waiting_tasks['release_time'].mean()
-
-        return np.array(
-            [task_type, task_num, mean_job_release_time, mean_processing_time, mean_remaining_processing_time, mean_remaining_task_num, mean_due_time, mean_stack_time, mean_waiting_time]
-            # [completion_ratio, tardiness_ratio]
-            # + [mean_remaining_processing_time / mean_total_processing_time]
-            # + [mean_remaining_task_num / 5]
-            # + [mean_critical_ratio]
-        )
-
-    def calc_reward(self, current_time, current_tasks, next_time, next_tasks):
-        current_tardiness = self.calc_mean_tardiness(current_time, current_tasks)
-        next_tardiness = self.calc_mean_tardiness(next_time, next_tasks)
-
-        # reward = 10 / (1 + 1 * current_tardiness)
-        reward = current_tardiness - next_tardiness
-
-        return reward
-
-    @staticmethod
-    def calc_tardiness_value(current_time, tasks):
-        tasks['current_time'] = current_time
-        tasks['completed_time'] = tasks['completed_time'].replace(-1, Constant.MAX_VALUE)
-        tasks['tardiness'] = tasks[['current_time', 'completed_time']].min(axis=1) - tasks['due_time']
-        tasks['tardiness'] = tasks['tardiness'].apply(lambda x: 1 if x > 0 else 0)
-
-        return tasks['tardiness'].sum()
-
-    @staticmethod
-    def calc_total_tardiness(current_time, tasks):
-        tasks['current_time'] = current_time
-        tasks['completed_time'] = tasks['completed_time'].replace(-1, Constant.MAX_VALUE)
-        tasks['tardiness'] = tasks[['current_time', 'completed_time']].min(axis=1) - tasks['due_time']
-        tasks['tardiness'] = tasks['tardiness'].apply(lambda x: max(x, 0))
-
-        return tasks['tardiness'].sum()
-
-    @staticmethod
-    def calc_mean_tardiness(current_time, tasks):
-        tasks['current_time'] = current_time
-        tasks['completed_time'] = tasks['completed_time'].replace(-1, Constant.MAX_VALUE)
-        tasks['tardiness'] = tasks[['current_time', 'completed_time']].min(axis=1) - tasks['due_time']
-        tasks['tardiness'] = tasks['tardiness'].apply(lambda x: max(x, 0))
-        mean_tardiness = tasks['tardiness'].mean()
-
-        return mean_tardiness
-
     def schedule(self, current_time, task_type, machine_id, print_flag=False):
         tasks = self.work_shop.find_current_task(task_type, current_time)
         jobs = self.work_shop.find_current_job(task_type, current_time)
         tasks = WorkShop.merge_task_job(tasks, jobs)
         # Calculate the state
-        state = self.calc_state(current_time, task_type, tasks)
+        state = Stater.execute(current_time, task_type, tasks)
         action = self.choose_action(state)
         strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[action]
         waiting_tasks = tasks[tasks['start_time'] == -1]
@@ -176,9 +84,9 @@ class WorkShopBasedDRL(WorkShopSolution):
         next_tasks = self.work_shop.find_current_task(task_type, next_time)
         next_jobs = self.work_shop.find_current_job(task_type, next_time)
         next_tasks = WorkShop.merge_task_job(next_tasks, next_jobs)
-        next_state = self.calc_state(next_time, task_type, next_tasks)
+        next_state = Stater.execute(next_time, task_type, next_tasks)
         # Calculate the reward
-        reward = self.calc_reward(current_time, tasks, next_time, next_tasks)
+        reward = Rewarder.execute(current_time, tasks, next_time, next_tasks)
         # Calculate the is_over
         is_over = len(next_tasks) == 1
         print(reward, action)
