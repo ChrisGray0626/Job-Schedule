@@ -64,18 +64,16 @@ class WorkShopSolution:
         return trajectory
 
     def print_result(self):
+        print("Task schedule strategy: ", self.task_schedule_strategy)
         self.work_shop.print_result()
 
 
-def execute(work_shop, task_schedule_strategy, print_flag=False):
+def run(work_shop, task_schedule_strategy, print_flag=False):
     solution = WorkShopSolution(work_shop, task_schedule_strategy)
     start_time = time.time()
     trajectory = solution.execute(print_flag=print_flag)
     end_time = time.time()
     execution_time = end_time - start_time
-    print("Task schedule strategy: ", task_schedule_strategy)
-    # print("Execution time: ", execution_time)
-    print("Mean tardiness: ", work_shop.evaluate_mean_tardiness())
     work_shop.print_result()
 
 
@@ -84,8 +82,8 @@ if __name__ == '__main__':
     instance_path = "../Data/la01-Taillard.txt"
     work_shop = WorkShop(instance_specification, instance_path, 3)
     task_schedule_strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[10]
-    execute(work_shop, task_schedule_strategy, print_flag=True)
+    run(work_shop, task_schedule_strategy, print_flag=True)
     # for task_schedule_strategy in Constant.CLASSICAL_SCHEDULING_STRATEGIES:
     #     work_shop = WorkShop(instance_specification, instance_path, 3)
-    #     execute(work_shop, task_schedule_strategy, print_flag=False)
+    #     run(work_shop, task_schedule_strategy, print_flag=False)
     pass

@@ -32,7 +32,6 @@ class WorkShop:
         self.total_processing_times = None
         self.remaining_processing_time_mat = None
         self.tasks = None
-        self.operations = None
         self.release = True
         self.init()
 
@@ -41,7 +40,6 @@ class WorkShop:
         self.init_machine()
         self.init_job()
         self.init_task()
-        self.init_operation()
 
     def init_definition(self):
         self.job_type_num, self.task_type_num, self.job_tasks, self.processing_times = Util.parse_definition(
@@ -75,15 +73,10 @@ class WorkShop:
                      'completed_time',
                      'status']).astype(int)
 
-    def init_operation(self):
-        self.operations = pd.DataFrame(
-            columns=['operation_id', 'job_type', 'task_type', 'machine_id', 'start_time', 'completed_time']).astype(int)
-
     def reset(self):
         self.machines['next_idle_time'] = 0
         self.jobs = self.jobs.drop(self.jobs.index)
         self.tasks = self.tasks.drop(self.tasks.index)
-        self.operations = self.operations.drop(self.operations.index)
         self.release = True
 
     @staticmethod
@@ -213,12 +206,25 @@ class WorkShop:
         return pending_job_num == 0
 
     def print_result(self):
-        mean_tardiness = self.evaluate_mean_tardiness()
+        mean_tardiness = self.evaluate_tardiness()
         job_completed_time = self.jobs['completed_time'].max()
         task_completed_time = self.tasks['completed_time'].max()
         print('Mean tardiness: ' + str(mean_tardiness))
         print('Job completed time: ' + str(job_completed_time))
         print('Task completed time: ' + str(task_completed_time))
+
+    def evaluate_tardiness(self):
+        self.jobs['tardiness'] = self.jobs['completed_time'] - self.jobs['due_time']
+        self.jobs['tardiness'] = self.jobs['tardiness'].apply(lambda x: max(x, 0))
+        mean_tardiness = self.jobs['tardiness'].mean()
+
+        return mean_tardiness
+
+    def evaluate_flow_time(self):
+        self.jobs['flow_time'] = self.jobs['completed_time'] - self.jobs['release_time']
+        self.jobs['flow_time_ratio'] = self.jobs['flow_time'] / self.jobs['total_processing_time']
+
+        return self.jobs['flow_time'].mean()
 
     @staticmethod
     def merge_task_job(tasks, jobs):
@@ -228,10 +234,3 @@ class WorkShop:
         tasks = tasks.merge(jobs, on='job_id', how='left')
 
         return tasks
-
-    def evaluate_mean_tardiness(self):
-        self.jobs['tardiness'] = self.jobs['completed_time'] - self.jobs['due_time']
-        self.jobs['tardiness'] = self.jobs['tardiness'].apply(lambda x: max(x, 0))
-        mean_tardiness = self.jobs['tardiness'].mean()
-
-        return mean_tardiness

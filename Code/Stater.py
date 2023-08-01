@@ -9,7 +9,7 @@ import numpy as np
 from Code import Constant
 
 
-def execute (current_time, task_type, tasks):
+def execute(current_time, task_type, tasks):
     tasks['current_time'] = current_time
     task_num = len(tasks)
     # Completion ratio
@@ -19,6 +19,8 @@ def execute (current_time, task_type, tasks):
     tasks['completed_time'] = tasks['completed_time'].replace(-1, Constant.MAX_VALUE)
     tardiness_tasks = tasks[tasks[['current_time', 'completed_time']].min(axis=1) > tasks['due_time']]
     tardiness_ratio = len(tardiness_tasks) / task_num
+    # Waiting time
+    mean_waiting_time = current_time - tasks['release_time'].mean()
     waiting_tasks = tasks[tasks['start_time'] == -1]
     # Release time
     minimum_release_time = waiting_tasks['release_time'].min()
@@ -53,8 +55,6 @@ def execute (current_time, task_type, tasks):
         'total_processing_time']
     minimum_critical_ratio = waiting_tasks['critical_ratio'].min()
     mean_critical_ratio = waiting_tasks['critical_ratio'].mean()
-    # Waiting time
-    mean_waiting_time = current_time - waiting_tasks['release_time'].mean()
 
     return np.array(
         [task_type, task_num, mean_job_release_time, mean_processing_time, mean_remaining_processing_time,
@@ -64,6 +64,7 @@ def execute (current_time, task_type, tasks):
         # + [mean_remaining_task_num / 5]
         # + [mean_critical_ratio]
     )
+
 
 if __name__ == '__main__':
     pass

@@ -200,8 +200,6 @@ class WorkShopBasedDRL(WorkShopSolution):
         self.execute(print_flag)
         end_time = time.time()
         execution_time = end_time - start_time
-        print("Execution time: ", execution_time)
-
         self.print_result()
 
     def parse_trajectory(self, trajectory):
@@ -228,6 +226,9 @@ class WorkShopBasedDRL(WorkShopSolution):
         is_overs = is_overs.to(self.device)
 
         return states, rewards, actions, next_states, is_overs
+
+    def print_result(self):
+        self.work_shop.print_result()
 
 
 if __name__ == '__main__':
