@@ -34,18 +34,20 @@ class WorkShopSolution:
         self.work_shop.reset()
         self.work_shop.release_job(self.job_batch_num)
 
-        trajectory = [[] for _ in range(self.work_shop.task_type_num)]
+        info_list = [[] for _ in range(self.work_shop.task_type_num)]
         current_time = 1
         while self.work_shop.release or not self.work_shop.is_over():
             for task_type in range(self.work_shop.task_type_num):
-                info = self.work_centre_execute(current_time, task_type, print_flag)
-                trajectory[task_type] += info
+                work_centre_info_list = self.work_centre_execute(current_time, task_type, print_flag)
+                info_list[task_type] += work_centre_info_list
             current_time += 1
-
-        return trajectory
+        for i in range(self.work_shop.task_type_num):
+            mean_tardiness = self.work_shop.evaluate_work_centre_tardiness(i)
+            info_list[i].append([mean_tardiness])
+        return info_list
 
     def work_centre_execute(self, current_time, task_type, print_flag=False):
-        trajectory = []
+        info_list = []
         # Find the idle machines
         machine_ids = self.work_shop.find_idle_machine(task_type, current_time)
         for machine_id in machine_ids:
@@ -59,9 +61,9 @@ class WorkShopSolution:
                     print(current_time, job_id, task_type)
                 continue
             info = self.schedule(current_time, task_type, machine_id, print_flag)
-            trajectory.append(info)
+            info_list.append(info)
 
-        return trajectory
+        return info_list
 
     def print_result(self):
         print("Task schedule strategy: ", self.task_schedule_strategy)

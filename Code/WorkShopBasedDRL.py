@@ -23,18 +23,18 @@ class WorkShopBasedDRL(WorkShopSolution):
         super().__init__(_work_shop, Constant.DYNAMICAL_SCHEDULING_STRATEGY, _job_batch_num)
         self.task_scheduler = ClassicalTaskScheduler()
         self.job_batch_num = _job_batch_num
-        self.input_size = 15
+        self.input_size = 8
         self.output_size = len(Constant.DRL_SCHEDULING_STRATEGIES)
         self.device = torch.device("cuda")
         self.policy_model = torch.nn.Sequential(
             torch.nn.Linear(self.input_size, 32),
             torch.nn.Tanh(),
             torch.nn.Linear(32, 64),
-            torch.nn.ReLU(),
+            torch.nn.Tanh(),
             torch.nn.Linear(64, 128),
-            torch.nn.ReLU(),
+            torch.nn.Tanh(),
             torch.nn.Linear(128, 256),
-            torch.nn.ReLU(),
+            torch.nn.Tanh(),
             torch.nn.Linear(256, self.output_size),
             torch.nn.Softmax(dim=1),
         )
@@ -43,11 +43,11 @@ class WorkShopBasedDRL(WorkShopSolution):
             torch.nn.Linear(self.input_size, 32),
             torch.nn.Tanh(),
             torch.nn.Linear(32, 64),
-            torch.nn.ReLU(),
+            torch.nn.Tanh(),
             torch.nn.Linear(64, 128),
-            torch.nn.ReLU(),
+            torch.nn.Tanh(),
             torch.nn.Linear(128, 256),
-            torch.nn.ReLU(),
+            torch.nn.Tanh(),
             torch.nn.Linear(256, 1),
         )
 
@@ -63,7 +63,6 @@ class WorkShopBasedDRL(WorkShopSolution):
         prob = self.policy_model.forward(state)
         # 根据概率选择一个动作
         action = random.choices(range(self.output_size), weights=prob[0].tolist(), k=1)[0]
-        print("prob:", prob[0].tolist())
         return action
 
     def schedule(self, current_time, task_type, machine_id, print_flag=False):
@@ -77,21 +76,11 @@ class WorkShopBasedDRL(WorkShopSolution):
         waiting_tasks = tasks[tasks['start_time'] == -1]
         task_id = self.task_scheduler.execute(current_time, strategy, waiting_tasks)
         job_id, next_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
-        # Calculate the next state
-        # next_time = current_time + 1
-        next_tasks = self.work_shop.find_current_task(task_type, next_time)
-        next_jobs = self.work_shop.find_current_job(task_type, next_time)
-        next_tasks = WorkShop.merge_task_job(next_tasks, next_jobs)
-        next_state = Stater.execute(next_time, task_type, next_tasks)
-        # Calculate the reward
-        reward = Rewarder.execute(current_time, tasks, next_time, next_tasks)
-        # Calculate the is_over
-        next_tasks = next_tasks[next_tasks['start_time'] == -1]
-        is_over = len(next_tasks) == 1
+        mean_tardiness = Rewarder.calc_mean_tardiness(current_time, tasks)
         if print_flag:
             print(current_time, job_id, task_type, strategy)
 
-        return state, reward, action, next_state, is_over
+        return current_time, state, action, mean_tardiness
 
     def calc_target(self, rewards, next_states, is_overs):
         with torch.no_grad():
@@ -122,11 +111,11 @@ class WorkShopBasedDRL(WorkShopSolution):
         loss_fn = torch.nn.MSELoss()
         for epoch in range(epoch_num):
             # 玩一局游戏,得到数据
-            trajectory = self.execute()
+            info_list = self.execute()
             for task_type in range(self.work_shop.task_type_num):
-                work_centre_trajectory = trajectory[task_type]
-                # work_centre_trajectory = random.sample(work_centre_trajectory, min(len(work_centre_trajectory), 32))
-                states, rewards, actions, next_states, is_overs = self.parse_trajectory(work_centre_trajectory)
+                work_centre_info_list = info_list[task_type]
+                trajectory = self.generate_trajectory(work_centre_info_list)
+                states, rewards, actions, next_states, is_overs = self.parse_trajectory(trajectory)
 
                 values = self.value_model.forward(states)
                 # [b, 4] -> [b, 1]
@@ -142,7 +131,7 @@ class WorkShopBasedDRL(WorkShopSolution):
                 old_probs = old_probs.gather(dim=1, index=actions)
                 old_probs = old_probs.detach()
                 # 每批数据反复训练10次
-                for _ in range(20):
+                for _ in range(10):
                     # 重新计算每一步动作的概率
                     # [b, 4] -> [b, 2]
                     new_probs = self.policy_model.forward(states)
@@ -178,10 +167,11 @@ class WorkShopBasedDRL(WorkShopSolution):
         torch.save(self.value_model.state_dict(), Constant.VALUE_MODEL_PATH)
 
     def test(self, print_flag=False):
-        trajectory = self.execute(print_flag)
+        info_list = self.execute(print_flag)
         reward_sum = 0
         for task_type in range(self.work_shop.task_type_num):
-            work_centre_trajectory = trajectory[task_type]
+            work_centre_info_list = info_list[task_type]
+            work_centre_trajectory = self.generate_trajectory(work_centre_info_list)
             reward_sum += sum([i[1] for i in work_centre_trajectory])
 
         if print_flag:
@@ -198,6 +188,32 @@ class WorkShopBasedDRL(WorkShopSolution):
         end_time = time.time()
         execution_time = end_time - start_time
         self.print_result()
+
+    @staticmethod
+    def generate_trajectory(info_list):
+        trajectory = []
+        # Info: [current_time, state, action, mean_tardiness]
+        # Trajectory: [state, reward, action, next_state, is_over]
+        for i in range(len(info_list) - 2):
+            state = info_list[i][1]
+            action = info_list[i][2]
+            current_mean_tardiness = info_list[i][3]
+            next_state = info_list[i + 1][1]
+            next_mean_tardiness = info_list[i + 1][3]
+            reward = current_mean_tardiness - next_mean_tardiness
+            is_over = False
+            trajectory.append([state, reward, action, next_state, is_over])
+        # Last info
+        state = info_list[-2][1]
+        action = info_list[-2][2]
+        current_mean_tardiness = info_list[-2][3]
+        next_mean_tardiness = info_list[-1][0]
+        next_state = state
+        reward = current_mean_tardiness - next_mean_tardiness
+        is_over = True
+        trajectory.append([state, reward, action, next_state, is_over])
+
+        return trajectory
 
     def parse_trajectory(self, trajectory):
         # [b, 3]

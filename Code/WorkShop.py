@@ -124,7 +124,7 @@ class WorkShop:
         for i in range(0, job_batch_num):
             for j in range(0, self.job_type_num):
                 self.add_job(j, current_times[j])
-                current_times[j] += random.randint(0, 5)
+                current_times[j] += random.randint(0, 3)
 
         self.release = False
 
@@ -220,6 +220,15 @@ class WorkShop:
         jobs['tardiness'] = jobs['completed_time'] - jobs['due_time']
         jobs['tardiness'] = jobs['tardiness'].apply(lambda x: max(x, 0))
         mean_tardiness = jobs['tardiness'].mean()
+
+        return mean_tardiness
+
+    def evaluate_work_centre_tardiness(self, task_type):
+        tasks = self.tasks[self.tasks['task_type'] == task_type].copy(deep=True)
+        tasks = self.merge_task_job(tasks, self.jobs)
+        tasks['tardiness'] = tasks['completed_time'] - tasks['due_time']
+        tasks['tardiness'] = tasks['tardiness'].apply(lambda x: max(x, 0))
+        mean_tardiness = tasks['tardiness'].mean()
 
         return mean_tardiness
 
