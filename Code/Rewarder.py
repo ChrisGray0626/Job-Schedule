@@ -13,7 +13,8 @@ def execute(current_time, current_tasks, next_time, next_tasks):
     current_waiting_time = calc_mean_waiting_time(current_time, current_tasks)
     next_waiting_time = calc_mean_waiting_time(current_time, next_tasks)
     # reward = 10 / (1 + 1 * current_tardiness)
-    reward = 0.1 * (current_tardiness - next_tardiness) + 0.9 * (current_waiting_time - next_waiting_time)
+    # reward = 0.5 * (current_tardiness - next_tardiness) + 0.5 * (current_waiting_time - next_waiting_time)
+    reward = current_waiting_time - next_waiting_time
 
     return reward
 

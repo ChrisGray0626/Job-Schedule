@@ -63,6 +63,7 @@ class WorkShopBasedDRL(WorkShopSolution):
         prob = self.policy_model.forward(state)
         # 根据概率选择一个动作
         action = random.choices(range(self.output_size), weights=prob[0].tolist(), k=1)[0]
+        print("prob:", prob[0].tolist())
         return action
 
     def schedule(self, current_time, task_type, machine_id, print_flag=False):
@@ -77,6 +78,7 @@ class WorkShopBasedDRL(WorkShopSolution):
         task_id = self.task_scheduler.execute(current_time, strategy, waiting_tasks)
         job_id, next_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
         # Calculate the next state
+        # next_time = current_time + 1
         next_tasks = self.work_shop.find_current_task(task_type, next_time)
         next_jobs = self.work_shop.find_current_job(task_type, next_time)
         next_tasks = WorkShop.merge_task_job(next_tasks, next_jobs)
@@ -84,6 +86,7 @@ class WorkShopBasedDRL(WorkShopSolution):
         # Calculate the reward
         reward = Rewarder.execute(current_time, tasks, next_time, next_tasks)
         # Calculate the is_over
+        next_tasks = next_tasks[next_tasks['start_time'] == -1]
         is_over = len(next_tasks) == 1
         if print_flag:
             print(current_time, job_id, task_type, strategy)
@@ -139,7 +142,7 @@ class WorkShopBasedDRL(WorkShopSolution):
                 old_probs = old_probs.gather(dim=1, index=actions)
                 old_probs = old_probs.detach()
                 # 每批数据反复训练10次
-                for _ in range(10):
+                for _ in range(20):
                     # 重新计算每一步动作的概率
                     # [b, 4] -> [b, 2]
                     new_probs = self.policy_model.forward(states)
