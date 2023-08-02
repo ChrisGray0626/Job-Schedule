@@ -57,12 +57,16 @@ def execute(current_time, task_type, tasks):
     mean_critical_ratio = waiting_tasks['critical_ratio'].mean()
 
     return np.array(
-        [task_type, task_num, mean_job_release_time, mean_processing_time, mean_remaining_processing_time,
-         mean_remaining_task_num, mean_due_time, mean_stack_time, mean_waiting_time]
-        # [completion_ratio, tardiness_ratio]
-        # + [mean_remaining_processing_time / mean_total_processing_time]
-        # + [mean_remaining_task_num / 5]
-        # + [mean_critical_ratio]
+        [task_type, task_num]
+        + [mean_waiting_time]
+        + [minimum_release_time, maximum_release_time]
+        + [minimum_processing_time, maximum_processing_time]
+        + [minimum_remaining_processing_time, maximum_remaining_processing_time]
+        + [minimum_remaining_task_num, maximum_remaining_task_num]
+        + [minimum_job_release_time]
+        + [minimum_due_time]
+        + [minimum_stack_time]
+        + [minimum_critical_ratio]
     )
 
 

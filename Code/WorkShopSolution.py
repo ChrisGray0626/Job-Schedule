@@ -32,7 +32,7 @@ class WorkShopSolution:
 
     def execute(self, print_flag=False):
         self.work_shop.reset()
-        self.work_shop.init_random_job(self.job_batch_num)
+        self.work_shop.release_job(self.job_batch_num)
 
         trajectory = [[] for _ in range(self.work_shop.task_type_num)]
         current_time = 1
@@ -74,16 +74,16 @@ def run(work_shop, task_schedule_strategy, print_flag=False):
     trajectory = solution.execute(print_flag=print_flag)
     end_time = time.time()
     execution_time = end_time - start_time
-    work_shop.print_result()
+    solution.print_result()
 
 
 if __name__ == '__main__':
     instance_specification = "Taillard"
     instance_path = "../Data/la01-Taillard.txt"
-    work_shop = WorkShop(instance_specification, instance_path, 3)
-    task_schedule_strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[10]
-    run(work_shop, task_schedule_strategy, print_flag=True)
-    # for task_schedule_strategy in Constant.CLASSICAL_SCHEDULING_STRATEGIES:
-    #     work_shop = WorkShop(instance_specification, instance_path, 3)
-    #     run(work_shop, task_schedule_strategy, print_flag=False)
+    # work_shop = WorkShop(instance_specification, instance_path, 3)
+    # task_schedule_strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[10]
+    # run(work_shop, task_schedule_strategy, print_flag=True)
+    for task_schedule_strategy in Constant.CLASSICAL_SCHEDULING_STRATEGIES:
+        work_shop = WorkShop(instance_specification, instance_path, 3)
+        run(work_shop, task_schedule_strategy, print_flag=False)
     pass

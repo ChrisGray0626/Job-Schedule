@@ -11,22 +11,20 @@ import numpy as np
 import torch
 
 import Constant
-import Rewarder
-from Code import Test, Stater
+from Code import Test, Stater, Rewarder
 from Code.WorkShop import WorkShop
 from TaskScheduler import ClassicalTaskScheduler
 from WorkShopSolution import WorkShopSolution
 
 
-# TODO State Reward Status Function
 class WorkShopBasedDRL(WorkShopSolution):
 
     def __init__(self, _work_shop, _job_batch_num=10):
         super().__init__(_work_shop, Constant.DYNAMICAL_SCHEDULING_STRATEGY, _job_batch_num)
         self.task_scheduler = ClassicalTaskScheduler()
         self.job_batch_num = _job_batch_num
-        self.input_size = 9
-        self.output_size = len(Constant.CLASSICAL_SCHEDULING_STRATEGIES)
+        self.input_size = 15
+        self.output_size = len(Constant.DRL_SCHEDULING_STRATEGIES)
         self.device = torch.device("cuda")
         self.policy_model = torch.nn.Sequential(
             torch.nn.Linear(self.input_size, 32),
@@ -35,27 +33,26 @@ class WorkShopBasedDRL(WorkShopSolution):
             torch.nn.ReLU(),
             torch.nn.Linear(64, 128),
             torch.nn.ReLU(),
-            torch.nn.Linear(128, self.output_size),
+            torch.nn.Linear(128, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, self.output_size),
             torch.nn.Softmax(dim=1),
         )
 
         self.value_model = torch.nn.Sequential(
             torch.nn.Linear(self.input_size, 32),
-            torch.nn.ReLU(),
+            torch.nn.Tanh(),
             torch.nn.Linear(32, 64),
             torch.nn.ReLU(),
             torch.nn.Linear(64, 128),
             torch.nn.ReLU(),
-            torch.nn.Linear(128, 1),
+            torch.nn.Linear(128, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 1),
         )
-        random_input = torch.randn(2, self.input_size)
 
         self.policy_model = self.policy_model.to(self.device)
         self.value_model = self.value_model.to(self.device)
-        random_input = random_input.to(self.device)
-
-        # self.value_model.forward(random_input)
-        # self.policy_model.forward(random_input)
 
         self.gamma = 1
 
@@ -66,7 +63,6 @@ class WorkShopBasedDRL(WorkShopSolution):
         prob = self.policy_model.forward(state)
         # 根据概率选择一个动作
         action = random.choices(range(self.output_size), weights=prob[0].tolist(), k=1)[0]
-        print(prob, action)
         return action
 
     def schedule(self, current_time, task_type, machine_id, print_flag=False):
@@ -76,7 +72,7 @@ class WorkShopBasedDRL(WorkShopSolution):
         # Calculate the state
         state = Stater.execute(current_time, task_type, tasks)
         action = self.choose_action(state)
-        strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[action]
+        strategy = Constant.DRL_SCHEDULING_STRATEGIES[action]
         waiting_tasks = tasks[tasks['start_time'] == -1]
         task_id = self.task_scheduler.execute(current_time, strategy, waiting_tasks)
         job_id, next_time = self.work_shop.process(current_time, task_type, machine_id, task_id)
@@ -89,7 +85,6 @@ class WorkShopBasedDRL(WorkShopSolution):
         reward = Rewarder.execute(current_time, tasks, next_time, next_tasks)
         # Calculate the is_over
         is_over = len(next_tasks) == 1
-        print(reward, action)
         if print_flag:
             print(current_time, job_id, task_type, strategy)
 
@@ -119,15 +114,15 @@ class WorkShopBasedDRL(WorkShopSolution):
         return advantages
 
     def train(self, epoch_num):
-        policy_optimizer = torch.optim.Adam(self.policy_model.parameters(), lr=5e-3)
-        value_optimizer = torch.optim.Adam(self.value_model.parameters(), lr=1e-2)
+        policy_optimizer = torch.optim.Adam(self.policy_model.parameters(), lr=1e-3)
+        value_optimizer = torch.optim.Adam(self.value_model.parameters(), lr=1e-3)
         loss_fn = torch.nn.MSELoss()
         for epoch in range(epoch_num):
             # 玩一局游戏,得到数据
             trajectory = self.execute()
             for task_type in range(self.work_shop.task_type_num):
                 work_centre_trajectory = trajectory[task_type]
-                work_centre_trajectory = random.sample(work_centre_trajectory, min(len(work_centre_trajectory), 32))
+                # work_centre_trajectory = random.sample(work_centre_trajectory, min(len(work_centre_trajectory), 32))
                 states, rewards, actions, next_states, is_overs = self.parse_trajectory(work_centre_trajectory)
 
                 values = self.value_model.forward(states)
@@ -144,7 +139,7 @@ class WorkShopBasedDRL(WorkShopSolution):
                 old_probs = old_probs.gather(dim=1, index=actions)
                 old_probs = old_probs.detach()
                 # 每批数据反复训练10次
-                for _ in range(5):
+                for _ in range(10):
                     # 重新计算每一步动作的概率
                     # [b, 4] -> [b, 2]
                     new_probs = self.policy_model.forward(states)
@@ -158,7 +153,6 @@ class WorkShopBasedDRL(WorkShopSolution):
                     # [b, 1] * [b, 1] -> [b, 1]
                     surr1 = ratios * advantages
                     # [b, 1] * [b, 1] -> [b, 1]
-                    print("new_probs", new_probs)
                     surr2 = torch.clamp(ratios, 0.8, 1.2) * advantages
                     policy_loss = -torch.min(surr1, surr2)
                     policy_loss = policy_loss.mean()
@@ -173,7 +167,7 @@ class WorkShopBasedDRL(WorkShopSolution):
                     value_loss.backward()
                     value_optimizer.step()
 
-            if (epoch + 1) % (epoch_num / 10) == 0:
+            if (epoch + 1) % (epoch_num / 5) == 0:
                 reward_sum = self.test()
                 print(epoch + 1, reward_sum)
         # Save the model

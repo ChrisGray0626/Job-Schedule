@@ -81,7 +81,7 @@ class WorkShop:
 
     @staticmethod
     def calc_due_time(current_time, job_processing_time):
-        due_factor_pool = [1.0, 1.1, 1.2]
+        due_factor_pool = [1.0, 1.1, 1.2, 1.3, 1.4]
         due_factor = random.choice(due_factor_pool)
         due_time = int(current_time + job_processing_time * due_factor)
 
@@ -117,7 +117,7 @@ class WorkShop:
 
         return task_id
 
-    def init_random_job(self, job_batch_num):
+    def release_job(self, job_batch_num):
         current_time = 1
         current_times = np.full(self.job_type_num, current_time)
         random.seed(6)
@@ -207,24 +207,28 @@ class WorkShop:
 
     def print_result(self):
         mean_tardiness = self.evaluate_tardiness()
+        mean_flow_time = self.evaluate_flow_time()
         job_completed_time = self.jobs['completed_time'].max()
         task_completed_time = self.tasks['completed_time'].max()
         print('Mean tardiness: ' + str(mean_tardiness))
+        print('Mean flow time: ' + str(mean_flow_time))
         print('Job completed time: ' + str(job_completed_time))
         print('Task completed time: ' + str(task_completed_time))
 
     def evaluate_tardiness(self):
-        self.jobs['tardiness'] = self.jobs['completed_time'] - self.jobs['due_time']
-        self.jobs['tardiness'] = self.jobs['tardiness'].apply(lambda x: max(x, 0))
-        mean_tardiness = self.jobs['tardiness'].mean()
+        jobs = self.jobs.copy(deep=True)
+        jobs['tardiness'] = jobs['completed_time'] - jobs['due_time']
+        jobs['tardiness'] = jobs['tardiness'].apply(lambda x: max(x, 0))
+        mean_tardiness = jobs['tardiness'].mean()
 
         return mean_tardiness
 
     def evaluate_flow_time(self):
-        self.jobs['flow_time'] = self.jobs['completed_time'] - self.jobs['release_time']
-        self.jobs['flow_time_ratio'] = self.jobs['flow_time'] / self.jobs['total_processing_time']
+        jobs = self.jobs.copy(deep=True)
+        jobs['flow_time'] = jobs['completed_time'] - jobs['release_time']
+        jobs['flow_time_ratio'] = jobs['flow_time'] / jobs['total_processing_time']
 
-        return self.jobs['flow_time'].mean()
+        return jobs['flow_time'].mean()
 
     @staticmethod
     def merge_task_job(tasks, jobs):

@@ -39,6 +39,8 @@ class ClassicalTaskScheduler:
         elif strategy == 'CR':
             tasks['critical_ratio'] = (tasks['due_time'] - current_time) / tasks['total_processing_time']
             idx = tasks['critical_ratio'].idxmin()
+        elif strategy == 'RANDOM':
+            idx = np.random.choice(tasks.index)
         else:
             raise Exception("Unknown Strategy")
         task = tasks.loc[idx]
