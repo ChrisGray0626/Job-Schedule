@@ -23,8 +23,8 @@ class CartPoleBasedAC(CartPoleBasedPolicyGradient):
         self.value_model.forward(torch.randn(2, 4))
 
     def train(self):
-        optimizer = torch.optim.Adam(self.policy_model.parameters(), lr=1e-3)
-        optimizer_td = torch.optim.Adam(self.value_model.parameters(), lr=1e-2)
+        policy_optimizer = torch.optim.Adam(self.policy_model.parameters(), lr=1e-3)
+        value_optimizer = torch.optim.Adam(self.value_model.parameters(), lr=1e-2)
         loss_fn = torch.nn.MSELoss()
         # 玩N局游戏,每局游戏训练一次
         for epoch in range(1000):
@@ -60,12 +60,12 @@ class CartPoleBasedAC(CartPoleBasedPolicyGradient):
             # 时序差分的loss就是简单的value和target求mse loss即可
             loss_td = loss_fn(values, targets.detach())
             # 更新参数
-            optimizer.zero_grad()
+            policy_optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
-            optimizer_td.zero_grad()
+            policy_optimizer.step()
+            value_optimizer.zero_grad()
             loss_td.backward()
-            optimizer_td.step()
+            value_optimizer.step()
             if (epoch + 1) % 100 == 0:
                 test_result = sum([self.test(play=False) for _ in range(10)]) / 10
                 print(epoch + 1, test_result)

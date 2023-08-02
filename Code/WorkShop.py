@@ -32,7 +32,6 @@ class WorkShop:
         self.total_processing_times = None
         self.remaining_processing_time_mat = None
         self.tasks = None
-        self.operations = None
         self.release = True
         self.init()
 
@@ -41,7 +40,6 @@ class WorkShop:
         self.init_machine()
         self.init_job()
         self.init_task()
-        self.init_operation()
 
     def init_definition(self):
         self.job_type_num, self.task_type_num, self.job_tasks, self.processing_times = Util.parse_definition(
@@ -66,7 +64,8 @@ class WorkShop:
     def init_job(self):
         self.jobs = pd.DataFrame(
             columns=['job_id', 'job_type', 'release_time', 'start_time', 'completed_time', 'current_task_type',
-                     'status', 'remaining_processing_time', 'remaining_task_num']).astype(int)
+                     'status', 'remaining_processing_time', 'remaining_task_num', 'total_processing_time',
+                     'due_time']).astype(int)
 
     def init_task(self):
         self.tasks = pd.DataFrame(
@@ -74,16 +73,19 @@ class WorkShop:
                      'completed_time',
                      'status']).astype(int)
 
-    def init_operation(self):
-        self.operations = pd.DataFrame(
-            columns=['operation_id', 'job_type', 'task_type', 'machine_id', 'start_time', 'completed_time']).astype(int)
-
     def reset(self):
         self.machines['next_idle_time'] = 0
         self.jobs = self.jobs.drop(self.jobs.index)
         self.tasks = self.tasks.drop(self.tasks.index)
-        self.operations = self.operations.drop(self.operations.index)
         self.release = True
+
+    @staticmethod
+    def calc_due_time(current_time, job_processing_time):
+        due_factor_pool = [1.0, 1.1, 1.2, 1.3, 1.4]
+        due_factor = random.choice(due_factor_pool)
+        due_time = int(current_time + job_processing_time * due_factor)
+
+        return due_time
 
     def add_job(self, job_type, current_time):
         job_id = len(self.jobs)
@@ -92,11 +94,13 @@ class WorkShop:
         completed_time = -1
         first_task_type = self.job_first_task[job_type]
         status = 0
-        remaining_processing_time = self.remaining_processing_time_mat[job_type][first_task_type]
+        remaining_processing_time = self.total_processing_times[job_type]
         remaining_task_num = self.task_type_num
+        total_processing_time = self.total_processing_times[job_type]
+        due_time = self.calc_due_time(current_time, self.total_processing_times[job_type])
         # Add the job
         job = [job_id, job_type, release_time, start_time, completed_time, first_task_type, status,
-               remaining_processing_time, remaining_task_num]
+               remaining_processing_time, remaining_task_num, total_processing_time, due_time]
         self.jobs.loc[job_id] = job
         # Add the first task
         first_task_id = self.add_task(job_id, job_type, first_task_type, current_time)
@@ -113,14 +117,14 @@ class WorkShop:
 
         return task_id
 
-    def init_random_job(self, job_batch_num):
+    def release_job(self, job_batch_num):
         current_time = 1
         current_times = np.full(self.job_type_num, current_time)
         random.seed(6)
         for i in range(0, job_batch_num):
             for j in range(0, self.job_type_num):
                 self.add_job(j, current_times[j])
-                current_times[j] += random.randint(0, 5)
+                current_times[j] += random.randint(0, 3)
 
         self.release = False
 
@@ -159,10 +163,6 @@ class WorkShop:
             # Add the next task
             next_task_id = self.add_task(job_id, job_type, next_task_type, completed_time)
         self.jobs.at[job_id, 'remaining_task_num'] -= 1
-        # Update the operation
-        # operator_id = len(self.operations)
-        # self.operations.loc[operator_id] = [operator_id, job_type, task_type, machine_id, current_time,
-        #                                     completed_time]
 
         return job_id, completed_time
 
@@ -173,25 +173,77 @@ class WorkShop:
 
         return machine_ids
 
+    def find_next_idle_time(self, work_centre_id):
+        next_idle_time = self.machines[self.machines['work_centre_id'] == work_centre_id]['next_idle_time'].min()
+
+        return next_idle_time
+
+    def find_current_task(self, task_type, current_time):
+        tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time)]
+
+        return tasks.copy(deep=True)
+
     def find_pending_task(self, task_type, current_time):
         tasks = self.tasks[(self.tasks['task_type'] == task_type) & (self.tasks['release_time'] <= current_time) & (
-                    self.tasks['start_time'] == -1)]
+                self.tasks['start_time'] == -1)]
 
         return tasks
 
+    def find_current_job(self, task_type, current_time):
+        jobs = self.jobs[(self.jobs['release_time'] <= current_time)]
+
+        return jobs.copy(deep=True)
+
     def find_pending_job(self, task_type, current_time):
         jobs = self.jobs[(self.jobs['current_task_type'] == task_type) & (self.jobs['release_time'] <= current_time) & (
-                    self.jobs['status'] != 1)]
+                self.jobs['completed_time'] == -1)]
 
         return jobs
 
     def is_over(self):
-        pending_job_num = len(self.jobs[self.jobs['status'] != 1])
+        pending_job_num = len(self.jobs[self.jobs['completed_time'] == -1])
 
         return pending_job_num == 0
 
     def print_result(self):
+        mean_tardiness = self.evaluate_tardiness()
+        mean_flow_time = self.evaluate_flow_time()
         job_completed_time = self.jobs['completed_time'].max()
         task_completed_time = self.tasks['completed_time'].max()
+        print('Mean tardiness: ' + str(mean_tardiness))
+        print('Mean flow time: ' + str(mean_flow_time))
         print('Job completed time: ' + str(job_completed_time))
         print('Task completed time: ' + str(task_completed_time))
+
+    def evaluate_tardiness(self):
+        jobs = self.jobs.copy(deep=True)
+        jobs['tardiness'] = jobs['completed_time'] - jobs['due_time']
+        jobs['tardiness'] = jobs['tardiness'].apply(lambda x: max(x, 0))
+        mean_tardiness = jobs['tardiness'].mean()
+
+        return mean_tardiness
+
+    def evaluate_work_centre_tardiness(self, task_type):
+        tasks = self.tasks[self.tasks['task_type'] == task_type].copy(deep=True)
+        tasks = self.merge_task_job(tasks, self.jobs)
+        tasks['tardiness'] = tasks['completed_time'] - tasks['due_time']
+        tasks['tardiness'] = tasks['tardiness'].apply(lambda x: max(x, 0))
+        mean_tardiness = tasks['tardiness'].mean()
+
+        return mean_tardiness
+
+    def evaluate_flow_time(self):
+        jobs = self.jobs.copy(deep=True)
+        jobs['flow_time'] = jobs['completed_time'] - jobs['release_time']
+        jobs['flow_time_ratio'] = jobs['flow_time'] / jobs['total_processing_time']
+
+        return jobs['flow_time'].mean()
+
+    @staticmethod
+    def merge_task_job(tasks, jobs):
+        tasks = tasks.sort_values('job_id')
+        jobs = jobs.rename(columns={'release_time': 'job_release_time', 'start_time': 'job_start_time',
+                                    'completed_time': 'job_completed_time', 'status': 'job_status'})
+        tasks = tasks.merge(jobs, on='job_id', how='left')
+
+        return tasks

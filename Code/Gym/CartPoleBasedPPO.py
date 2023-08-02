@@ -7,13 +7,36 @@
 import torch
 
 from CartPoleBasedAC import CartPoleBasedAC
-from CartPoleBasedDQN import CartPoleBasedDQN
 
 
 class CartPoleBasedPPO(CartPoleBasedAC):
 
     def __init__(self):
         super().__init__()
+
+    def calc_target(self, rewards, next_states, is_overs):
+        with torch.no_grad():
+            targets = self.value_model.forward(next_states).detach()
+        targets = targets * 0.98
+        targets *= (1 - is_overs)
+        targets += rewards
+
+        return targets
+
+    @staticmethod
+    def calc_advantage(targets, values):
+        deltas = (targets - values).squeeze(dim=1).tolist()
+        advantages = []
+        # 反向遍历 deltas
+        s = 0.0
+        for delta in deltas[::-1]:
+            s = 0.98 * s + delta
+            advantages.append(s)
+        # 逆序
+        advantages.reverse()
+        advantages = torch.FloatTensor(advantages).reshape(-1, 1)
+
+        return advantages
 
     def train(self):
         optimizer = torch.optim.Adam(self.policy_model.parameters(), lr=1e-3)
@@ -34,16 +57,11 @@ class CartPoleBasedPPO(CartPoleBasedAC):
             # [b, 4] -> [b, 1]
             values = self.value_model.forward(states)
             # [b, 4] -> [b, 1]
-            targets = self.value_model.forward(next_states).detach()
-            targets = targets * 0.98
-            targets *= (1 - is_overs)
-            targets += rewards
+            targets = self.calc_target(rewards, next_states, is_overs)
             # 计算优势,这里的advantages有点像是策略梯度里的reward_sum
             # 只是这里计算的不是reward,而是target和value的差
             # [b, 1]
-            deltas = (targets - values).squeeze(dim=1).tolist()
-            advantages = CartPoleBasedDQN().calc_advantage(deltas)
-            advantages = torch.FloatTensor(advantages).reshape(-1, 1)
+            advantages = self.calc_advantage(targets, values)
             # 取出每一步动作的概率
             # [b, 2] -> [b, 2] -> [b, 1]
             old_probs = self.policy_model.forward(states)
@@ -56,9 +74,10 @@ class CartPoleBasedPPO(CartPoleBasedAC):
                 new_probs = self.policy_model.forward(states)
                 # [b, 2] -> [b, 1]
                 new_probs = new_probs.gather(dim=1, index=actions)
-                new_probs = new_probs
                 # 求出概率的变化
                 # [b, 1] - [b, 1] -> [b, 1]
+                print("new_probs", new_probs)
+                print("old_probs", old_probs)
                 ratios = new_probs / old_probs
                 # 计算截断的和不截断的两份loss,取其中小的
                 # [b, 1] * [b, 1] -> [b, 1]
@@ -84,7 +103,7 @@ class CartPoleBasedPPO(CartPoleBasedAC):
 
 
 if __name__ == '__main__':
-    cart_pole = CartPoleBasedAC()
+    cart_pole = CartPoleBasedPPO()
     cart_pole.train()
     cart_pole.test(play=False)
     pass

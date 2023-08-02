@@ -9,52 +9,44 @@ pip install -r requirements.txt
 ## Machine
 
 1. `machine_id`
-2. `work_centre_id`
-3. `next_idle_time`
+1. `work_centre_id`
+1. `next_idle_time`
 
 ## Job
 
 1. `job_id`
-2. `job_type`
-3. `release_time`
-4. `start_time`
-5. `completed_time`
-6. `current_task_type`
-7. `status`
-8. `remaining_process_time`
-9. `remaining_task_num`
+1. `job_type`
+1. `release_time`
+1. `start_time`
+1. `completed_time`
+1. `current_task_type`
+1. `status`
+1. `remaining_processing_time`
+1. `remaining_task_num`
 
 ## Task
 
 1. `task_id`
-2. `job_id`
-3. `task_type`
-4. `processing_time`
-5. `release_time`
-6. `start_time`
-7. `completed_time`
-8. `status`
+1. `job_id`
+1. `task_type`
+1. `processing_time`
+1. `release_time`
+1. `start_time`
+1. `completed_time`
+1. `status`
 
-## Operation
 
-1. `operation_id`
-2. `job_type`
-3. `task_type`
-4. `machine_id`
-5. `start_time`
-6. `completed_time`
+# Task Scheduling Strategy
 
-# Task Schedule Strategy
-
-- FIFO
-- FILO
-- SPT
-- LPT
-- SRTPT
-- LRTPT
-- LOR
-- MOR
-- ERD
+1. FIFO
+1. FILO
+1. SPT
+1. LPT
+1. SRTPT
+1. LRTPT
+1. LOR
+1. MOR
+1. ERD
 
 # PyTorch (GPU)
 
