@@ -71,7 +71,7 @@ class WorkShopSolution:
 
 
 def run(work_shop, task_schedule_strategy, print_flag=False):
-    solution = WorkShopSolution(work_shop, task_schedule_strategy)
+    solution = WorkShopSolution(work_shop, task_schedule_strategy, 20)
     start_time = time.time()
     trajectory = solution.execute(print_flag=print_flag)
     end_time = time.time()
@@ -85,7 +85,11 @@ if __name__ == '__main__':
     # work_shop = WorkShop(instance_specification, instance_path, 3)
     # task_schedule_strategy = Constant.CLASSICAL_SCHEDULING_STRATEGIES[10]
     # run(work_shop, task_schedule_strategy, print_flag=True)
+    mean_tardiness_list = []
     for task_schedule_strategy in Constant.CLASSICAL_SCHEDULING_STRATEGIES:
         work_shop = WorkShop(instance_specification, instance_path, 3)
         run(work_shop, task_schedule_strategy, print_flag=False)
+        mean_tardiness_list.append(work_shop.evaluate_tardiness())
+
+    print(mean_tardiness_list)
     pass

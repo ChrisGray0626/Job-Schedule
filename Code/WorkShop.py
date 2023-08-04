@@ -207,11 +207,9 @@ class WorkShop:
 
     def print_result(self):
         mean_tardiness = self.evaluate_tardiness()
-        mean_flow_time = self.evaluate_flow_time()
         job_completed_time = self.jobs['completed_time'].max()
         task_completed_time = self.tasks['completed_time'].max()
         print('Mean tardiness: ' + str(mean_tardiness))
-        print('Mean flow time: ' + str(mean_flow_time))
         print('Job completed time: ' + str(job_completed_time))
         print('Task completed time: ' + str(task_completed_time))
 
